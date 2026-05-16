@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@200;300;400;500&display=swap");
+
+/* ===============================
+   THEME VARIABLES (IMPROVED)
+================================ */
+:root {
+  --radius: 0.25rem;
+
+  /* Core palette (from design) */
+  --background: #030607; /* Logo black */
+  --foreground: #fafafa; /* Pure White */
+
+  --card: #071113;
+  --card-foreground: #fafafa;
+
+  --popover: #071113;
+  --popover-foreground: #fafafa;
+
+  --primary: #079b8f;
+  --primary-foreground: #030607;
+
+  --secondary: #079b8f;
+  --secondary-foreground: #ffffff;
+
+  --muted: #0b1d22;
+  --muted-foreground: #8fb8c0;
+
+  --accent: #079b8f;
+  --accent-foreground: #ffffff;
+
+  --border: #123039;
+  --input: #123039;
+
+  /* Greys (exact from image) */
+  --gray-dark: #0b1d22;
+  --gray-mid: #8fb8c0;
+  --gray-light: #c8edf2;
+  --gray-soft: #d8f4f7;
+  --gray-lighter: #eaeaea;
+  --white-soft: #f8f8f8;
+  --white: #fafafa;
+
+  /* Brand accent */
+  --gold: #079b8f;
+  --gold-soft: rgba(7, 155, 143, 0.16);
+
+  /* Shadows */
+  --shadow-elegant: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+  --shadow-glow: 0 0 40px -10px rgba(7, 155, 143, 0.24);
+
+  /* Glow */
+  --text-glow: 0 0 10px rgba(7, 155, 143, 0.26);
+
+  /* Fonts */
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Inter", sans-serif;
+}
+/* ===============================
+   BASE
+================================ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html,
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-weight: 300;
+    letter-spacing: 0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, var(--gold-soft), transparent),
+      radial-gradient(ellipse 60% 40% at 50% 110%, var(--gold-soft), transparent);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: var(--gold-soft);
+    color: var(--foreground);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+  }
+}
+
+/* ===============================
+   UTILITIES
+================================ */
+@layer utilities {
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+
+  .font-sans {
+    font-family: var(--font-sans);
+  }
+
+  .text-gold {
+    color: var(--gold);
+  }
+
+  .bg-gold {
+    background: var(--gold);
+    color: var(--background);
+  }
+
+  .border-gold {
+    border-color: var(--gold);
+  }
+
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .text-glow {
+    text-shadow: var(--text-glow);
+  }
+
+  .tracking-luxe {
+    letter-spacing: 0.4em;
+  }
+
+  .tracking-refined {
+    letter-spacing: 0.2em;
+  }
+
+  .divider-ornament {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--gold);
+  }
+
+  .divider-ornament::before,
+  .divider-ornament::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-soft), transparent);
+  }
+
+  /* Animations */
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.6s ease forwards;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.8s ease forwards;
+  }
+
+  @keyframes shimmer-dot {
+    0%,
+    80%,
+    100% {
+      transform: scale(0.4);
+      opacity: 0.4;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .dot-shimmer {
+    animation: shimmer-dot 1.4s infinite ease-in-out;
+  }
+}
