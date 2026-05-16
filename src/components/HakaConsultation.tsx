@@ -64,7 +64,7 @@ const OPTIONS: Partial<Record<Step, string[]>> = {
     "Improve online presence",
   ],
   investment: [
-    "Yes - I'm aligned with the ₹1.5 lac + GST/month investment.",
+    "Yes - I'm aligned with the Rs. 1.5 lac + GST/month investment.",
     "No - I'm okay growing at my current pace.",
   ],
   decisionMaker: ["Yes", "No", "Need to discuss with my team/partner"],
@@ -80,7 +80,7 @@ const PROMPTS: Record<Exclude<Step, "summary" | "done">, string> = {
   instagram: "What's your Instagram handle? Please provide the link.",
   profession: "What best describes your profession?",
   brandingGoal: "What is your primary goal with personal branding?",
-  investment: "Are you open to investing ₹1.5 lac + GST/month in personal branding?",
+  investment: "Are you open to investing Rs. 1.5 lac + GST/month in personal branding?",
   decisionMaker: "Are you the decision-maker for this project?",
   startTimeline: "How soon are you planning to start?",
   cameraComfort: "Are you comfortable facing the camera and speaking?",
@@ -105,8 +105,7 @@ const STEP_ORDER: Step[] = [
   "summary",
 ];
 
-const ATELIER_LEFT = ["Strategy", "Development", "Performance"];
-const ATELIER_RIGHT = ["Design", "Cinematography", "Storytelling"];
+const ATELIER_ITEMS = ["Strategy", "Development", "Performance", "Design", "Cinematography", "Storytelling"];
 
 interface Message {
   id: number;
@@ -114,7 +113,7 @@ interface Message {
   text: string;
 }
 
-const isValidEmail = (value: string) => /^?[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
 function saveSubmissionToLocalStorage(formData: FormData) {
   if (typeof window === "undefined") return;
@@ -129,7 +128,6 @@ function saveSubmissionToLocalStorage(formData: FormData) {
         if (Array.isArray(parsed)) submissions = parsed;
       } catch (error) {
         console.error("Unable to parse stored submissions, resetting storage:", error);
-        submissions = [];
       }
     }
 
@@ -139,10 +137,8 @@ function saveSubmissionToLocalStorage(formData: FormData) {
     });
 
     window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(submissions));
-    console.info("Saved consultation submission to localStorage.");
   } catch (error) {
     console.error("Failed to save submission to localStorage:", error);
-    // localStorage can be blocked, full, or contain invalid data.
   }
 }
 
@@ -156,7 +152,6 @@ export function HakaConsultation() {
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
   const [data, setData] = useState<FormData>({
     name: "",
@@ -174,41 +169,29 @@ export function HakaConsultation() {
     services: [],
   });
 
-  const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const idRef = useRef(0);
   const didInit = useRef(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   const pushBot = (text: string) => {
     setTyping(true);
     setTimeout(() => {
       setTyping(false);
       idRef.current++;
-      setMessages((m) => [...m, { id: idRef.current, type: "bot", text }]);
-    }, 900);
+      setMessages((current) => [...current, { id: idRef.current, type: "bot", text }]);
+    }, 650);
   };
 
   const pushUser = (text: string) => {
     idRef.current++;
-    setMessages((m) => [...m, { id: idRef.current, type: "user", text }]);
+    setMessages((current) => [...current, { id: idRef.current, type: "user", text }]);
   };
 
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
-    setTimeout(() => pushBot(PROMPTS.name), 400);
+    setTimeout(() => pushBot(PROMPTS.name), 350);
   }, []);
-
-  useEffect(() => {
-    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, typing, submitting]);
 
   useEffect(() => {
     if (!OPTIONS[step] && step !== "services" && step !== "summary") {
@@ -219,7 +202,10 @@ export function HakaConsultation() {
   const advance = (value: string) => {
     if (step === "email" && !isValidEmail(value)) {
       pushUser(value);
-      setTimeout(() => pushBot("That email address looks incorrect. Please provide a valid email like name@example.com."), 400);
+      setTimeout(
+        () => pushBot("That email address looks incorrect. Please provide a valid email like name@example.com."),
+        250,
+      );
       return;
     }
 
@@ -239,8 +225,9 @@ export function HakaConsultation() {
       consultationDate: "services",
     };
     const nextStep = next[step];
+
     if (nextStep) {
-      setData((d) => ({ ...d, [step]: value }));
+      setData((current) => ({ ...current, [step]: value }));
       setStep(nextStep);
       pushBot(PROMPTS[nextStep as Exclude<Step, "summary" | "done">]);
     }
@@ -248,15 +235,14 @@ export function HakaConsultation() {
 
   const confirmServices = () => {
     if (!selected.length) return;
-    pushUser(selected.join(" · "));
-    setData((d) => ({ ...d, services: selected }));
+    pushUser(selected.join(" | "));
+    setData((current) => ({ ...current, services: selected }));
     setTimeout(() => {
       pushBot("A perfect brief. Allow us to present your summary.");
       setStep("summary");
-    }, 400);
+    }, 300);
   };
 
-  // ── Save locally, then navigate ──────────────────
   const finish = (finalData: FormData) => {
     setSubmitting(true);
     saveSubmissionToLocalStorage(finalData);
@@ -268,10 +254,726 @@ export function HakaConsultation() {
   const stepIndex = STEP_ORDER.indexOf(step);
   const chapterNum = String(stepIndex + 1).padStart(2, "0");
   const totalNum = String(STEP_ORDER.length).padStart(2, "0");
+  const progress = Math.max(0, Math.min(100, ((stepIndex + 1) / STEP_ORDER.length) * 100));
+  const latestBotMessage = [...messages].reverse().find((message) => message.type === "bot");
+  const userMessages = messages.filter((message) => message.type === "user");
+  const answeredCount = userMessages.length;
 
-  const renderConsultationVideo = (className = "") => (
-    <div className={`consult-video${className ? ` ${className}` : ""}`}>
-      <div className="consult-video-frame">
+  const summaryRows = [
+    { label: "Name", value: data.name },
+    { label: "Phone", value: data.phone },
+    { label: "Email", value: data.email },
+    { label: "Location", value: data.location },
+    { label: "Instagram", value: data.instagram },
+    { label: "Profession", value: data.profession },
+    { label: "Goal", value: data.brandingGoal },
+    { label: "Investment", value: data.investment },
+    { label: "Decision", value: data.decisionMaker },
+    { label: "Start", value: data.startTimeline },
+    { label: "Camera", value: data.cameraComfort },
+    { label: "Slot", value: data.consultationDate },
+  ];
+
+  return (
+    <main className="consult-page">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap');
+
+        * { box-sizing: border-box; }
+
+        .consult-page {
+          height: 100dvh;
+          color: #f7fbfb;
+          background:
+            linear-gradient(120deg, rgba(7,155,143,0.10), transparent 28%),
+            linear-gradient(180deg, #020506 0%, #041012 100%);
+          font-family: 'Outfit', sans-serif;
+          display: grid;
+          grid-template-columns: 38% minmax(0, 1fr);
+          overflow: hidden;
+        }
+
+        .cinema-panel {
+          position: relative;
+          height: 100dvh;
+          background: #030607;
+          overflow: hidden;
+          border-right: 1px solid rgba(7,155,143,0.24);
+        }
+
+        .cinema-panel video {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+          opacity: 0.74;
+          background: #030607;
+        }
+
+        .cinema-shade {
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(180deg, rgba(2,5,6,0.96) 0%, rgba(2,5,6,0.18) 36%, rgba(2,5,6,0.98) 100%),
+            linear-gradient(90deg, rgba(2,5,6,0.34), transparent 46%);
+          pointer-events: none;
+        }
+
+        .brand-mark {
+          position: absolute;
+          top: 32px;
+          left: 34px;
+          right: 34px;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 20px;
+          z-index: 1;
+        }
+
+        .brand-mark img {
+          width: min(245px, 64%);
+          height: auto;
+          display: block;
+        }
+
+        .mini-label {
+          color: #8fb8c0;
+          font-size: 7px;
+          letter-spacing: 3.8px;
+          line-height: 1.7;
+          text-transform: uppercase;
+        }
+
+        .accent-label {
+          color: #16c6b3;
+          font-size: 8px;
+          letter-spacing: 4px;
+          text-transform: uppercase;
+        }
+
+        .chapter-pill {
+          border: 1px solid rgba(7,155,143,0.32);
+          background: rgba(2,5,6,0.52);
+          padding: 12px 14px;
+          text-align: right;
+          min-width: 104px;
+          backdrop-filter: blur(16px);
+        }
+
+        .chapter-pill strong {
+          display: block;
+          margin-top: 4px;
+          color: #d8f4f7;font-family: 'Outfit', sans-serif;
+          font-size: 26px;
+          font-weight: 300;
+          line-height: 1;
+        }
+
+        .brand-story {
+          position: absolute;
+          left: 34px;
+          right: 34px;
+          bottom: 30px;
+          z-index: 1;
+          display: grid;
+          gap: 22px;
+        }
+
+        .brand-story h1 {
+          margin: 0;
+          color: #f7fbfb;font-family: 'Outfit', sans-serif;
+          font-size: clamp(30px, 3.4vw, 54px);
+          font-weight: 300;
+          line-height: 0.98;
+        }
+
+        .brand-story p {
+          margin: 0;
+          max-width: 410px;
+          color: #bdd8dc;font-family: 'Outfit', sans-serif;
+          font-size: clamp(17px, 1.25vw, 22px);
+          font-style: italic;
+          line-height: 1.34;
+        }
+
+        .atelier-strip {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          border-top: 1px solid rgba(143,184,192,0.16);
+          border-left: 1px solid rgba(143,184,192,0.12);
+        }
+
+        .atelier-strip span {
+          min-height: 48px;
+          display: grid;
+          place-items: center;
+          border-right: 1px solid rgba(143,184,192,0.12);
+          border-bottom: 1px solid rgba(143,184,192,0.12);
+          color: #8fb8c0;
+          font-size: 7px;
+          letter-spacing: 2.4px;
+          text-transform: uppercase;
+          background: rgba(2,5,6,0.40);
+        }
+
+        .intake-stage {
+          height: 100dvh;
+          padding: clamp(22px, 3vw, 42px);
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          gap: 22px;
+          overflow: hidden;
+        }
+
+        .stage-top {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: end;
+          gap: 24px;
+          padding-bottom: 18px;
+          border-bottom: 1px solid rgba(143,184,192,0.12);
+        }
+
+        .stage-top h2 {
+          margin: 7px 0 0;
+          color: #f6ffff;
+         font-family: 'Outfit', sans-serif;
+          font-size: clamp(24px, 2.65vw, 42px);
+          font-weight: 300;
+          line-height: 1;
+        }
+
+        .progress-orbit {
+          width: 116px;
+          aspect-ratio: 1;
+          border: 1px solid rgba(7,155,143,0.34);
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          background:
+            conic-gradient(#16c6b3 ${progress}%, rgba(18,48,57,0.75) 0),
+            #020506;
+          box-shadow: 0 0 48px rgba(7,155,143,0.10);
+          position: relative;
+        }
+
+        .progress-orbit::after {
+          content: "";
+          position: absolute;
+          inset: 8px;
+          border-radius: 50%;
+          background: #041012;
+          border: 1px solid rgba(143,184,192,0.10);
+        }
+
+        .progress-orbit span {
+          position: relative;
+          z-index: 1;
+          color: #d8f4f7;
+          font-family: 'Outfit', sans-serif;
+          font-size: 24px;
+          line-height: 1;
+        }
+
+        .console-grid {
+          min-height: 0;
+          display: grid;
+          grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.55fr);
+          gap: 20px;
+        }
+
+        .question-console {
+          min-height: 0;
+          display: grid;
+          grid-template-rows: minmax(0, 1fr) auto;
+          border: 1px solid rgba(143,184,192,0.14);
+          background:
+            linear-gradient(150deg, rgba(7,155,143,0.16), transparent 34%),
+            rgba(2,5,6,0.78);
+          box-shadow: 0 30px 90px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.035);
+          overflow: hidden;
+        }
+
+        .prompt-area {
+          min-height: 0;
+          padding: clamp(24px, 4vw, 56px);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          gap: 24px;
+        }
+
+        .prompt-area h3 {
+          margin: 0;
+          max-width: 780px;
+          color: #d8f4f7;
+          font-family: 'Outfit', sans-serif;
+          font-size: clamp(28px, 3.9vw, 35px);
+          font-weight: 300;
+          line-height: 1.04;
+        }
+
+        .typing-dots {
+          display: flex;
+          gap: 9px;
+          align-items: center;
+          min-height: 86px;
+        }
+
+        .typing-dots span {
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: #16c6b3;
+          animation: pulseDot 1.25s ease-in-out infinite;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.16s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.32s; }
+
+        @keyframes pulseDot {
+          0%, 80%, 100% { opacity: 0.25; transform: scale(1); }
+          40% { opacity: 1; transform: scale(1.45); }
+        }
+
+        .prompt-footer {
+          display: flex;
+          justify-content: space-between;
+          gap: 16px;
+          align-items: center;
+          color: #8fb8c0;
+          font-size: 7px;
+          letter-spacing: 3px;
+          text-transform: uppercase;
+        }
+
+        .response-dock {
+          border-top: 1px solid rgba(143,184,192,0.13);
+          background: rgba(3,6,7,0.82);
+          padding: 18px;
+        }
+
+        .input-form {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 12px;
+        }
+
+        .input-field {
+          width: 100%;
+          min-width: 0;
+          border: 1px solid rgba(143,184,192,0.16);
+          background: rgba(2,5,6,0.74);
+          color: #ffffff;
+          outline: none;
+          padding: 14px 16px;
+          font-family: 'Outfit', sans-serif;
+          font-size: max(16px, 17px);
+          font-style: italic;
+          font-weight: 300;
+        }
+
+        .input-field::placeholder {
+          color: #8fb8c0;
+        }
+
+        .send-btn,
+        .confirm-btn,
+        .finish-btn {
+          border: 1px solid #16c6b3;
+          background: #16c6b3;
+          color: #020506;
+          padding: 0 20px;
+          min-height: 52px;
+          font-family: 'Outfit', sans-serif;
+          font-size: 7px;
+          font-weight: 600;
+          letter-spacing: 2.8px;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: opacity 0.2s ease, transform 0.2s ease;
+          white-space: nowrap;
+        }
+
+        .send-btn:hover,
+        .confirm-btn:hover:not(:disabled),
+        .finish-btn:hover:not(:disabled) {
+          opacity: 0.86;
+          transform: translateY(-1px);
+        }
+
+        .send-btn:disabled,
+        .confirm-btn:disabled,
+        .finish-btn:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .choice-panel {
+          display: grid;
+          gap: 12px;
+        }
+
+        .choice-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .choice-btn {
+          min-height: 54px;
+          border: 1px solid rgba(143,184,192,0.16);
+          background: rgba(2,5,6,0.74);
+          color: #d8f4f7;
+          padding: 12px;
+          text-align: left;
+          font-family: 'Outfit', sans-serif;
+          font-size: 7px;
+          font-weight: 500;
+          letter-spacing: 1.8px;
+          line-height: 1.45;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+
+        .choice-btn:hover,
+        .choice-btn.active {
+          border-color: #16c6b3;
+          background: rgba(7,155,143,0.16);
+          transform: translateY(-1px);
+        }
+
+        .time-row {
+          grid-column: 1 / -1;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .time-row .choice-btn {
+          min-height: 38px;
+          padding: 8px 10px;
+          flex: 1;
+          text-align: center;
+        }
+
+        .side-stack {
+          min-height: 0;
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          gap: 16px;
+        }
+
+        .status-card,
+        .answers-card {
+          border: 1px solid rgba(143,184,192,0.14);
+          background: rgba(2,5,6,0.64);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+        }
+
+        .status-card {
+          padding: 20px;
+          display: grid;
+          gap: 18px;
+        }
+
+        .status-number {
+          color: #d8f4f7;
+          font-family: 'Outfit', sans-serif;
+          font-size: 42px;
+          font-weight: 300;
+          line-height: 0.9;
+        }
+
+        .metric-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+
+        .metric-box {
+          border: 1px solid rgba(143,184,192,0.12);
+          padding: 14px;
+          background: rgba(3,6,7,0.52);
+        }
+
+        .metric-box strong {
+          display: block;
+          color: #f6ffff;
+          font-family: 'Outfit', sans-serif;
+          font-size: 21px;
+          font-weight: 300;
+          line-height: 1;
+          margin-bottom: 6px;
+        }
+
+        .answers-card {
+          min-height: 0;
+          padding: 16px;
+          overflow: hidden;
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          gap: 12px;
+        }
+
+        .answer-list {
+          min-height: 0;
+          overflow: hidden;
+          display: grid;
+          align-content: start;
+          gap: 8px;
+        }
+
+        .answer-chip {
+          border: 1px solid rgba(143,184,192,0.12);
+          background: rgba(3,6,7,0.52);
+          padding: 11px 12px;
+          min-width: 0;
+        }
+
+        .answer-chip span {
+          display: block;
+          color: #8fb8c0;
+          font-size: 7px;
+          letter-spacing: 2.6px;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
+
+        .answer-chip p {
+          margin: 0;
+          color: #f6ffff;
+          font-family: 'Outfit', sans-serif;
+          font-size: 15px;
+          font-style: italic;
+          line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .summary-panel {
+          min-height: 0;
+          border-top: 1px solid rgba(143,184,192,0.13);
+          background: rgba(3,6,7,0.82);
+          padding: 18px;
+          overflow: hidden;
+        }
+
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .summary-item {
+          border: 1px solid rgba(143,184,192,0.13);
+          background: rgba(2,5,6,0.65);
+          padding: 10px;
+          min-width: 0;
+        }
+
+        .summary-item span {
+          display: block;
+          color: #16c6b3;
+          font-size: 7px;
+          letter-spacing: 2.4px;
+          text-transform: uppercase;
+          margin-bottom: 5px;
+        }
+
+        .summary-item p {
+          margin: 0;
+          color: #d8f4f7;
+          font-family: 'Outfit', sans-serif;
+          font-size: 14px;
+          line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .service-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .service-tags span {
+          border: 1px solid rgba(7,155,143,0.28);
+          color: #c8edf2;
+          padding: 6px 10px;
+          font-size: 7px;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+        }
+
+        .finish-btn {
+          width: 100%;
+          margin-top: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+        }
+
+        .spinner {
+          width: 12px;
+          height: 12px;
+          border: 1px solid #123039;
+          border-top-color: #030607;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 1020px) {
+          .consult-page {
+            grid-template-columns: 1fr;
+            grid-template-rows: 34dvh minmax(0, 1fr);
+            overflow: hidden;
+          }
+
+          .cinema-panel {
+            height: 34dvh;
+            min-height: 0;
+          }
+
+          .intake-stage {
+            height: auto;
+            min-height: 0;
+            overflow: hidden;
+            gap: 14px;
+            padding: 18px;
+          }
+
+          .console-grid {
+            grid-template-columns: 1fr;
+            min-height: 0;
+          }
+
+          .side-stack {
+            display: none;
+          }
+
+          .stage-top {
+            padding-bottom: 12px;
+          }
+
+          .stage-top h2 {
+            font-size: clamp(22px, 3.5vw, 32px);
+          }
+
+          .progress-orbit {
+            width: 86px;
+          }
+
+          .prompt-area {
+            padding: 22px;
+          }
+
+          .prompt-area h3 {
+            font-size: clamp(26px, 4.8vw, 40px);
+          }
+        }
+
+        @media (max-width: 680px) {
+          .brand-mark {
+            top: 22px;
+            left: 22px;
+            right: 22px;
+          }
+
+          .brand-mark img {
+            width: min(172px, 58vw);
+          }
+
+          .chapter-pill {
+            min-width: 84px;
+            padding: 10px;
+          }
+
+          .brand-story {
+            left: 22px;
+            right: 22px;
+            bottom: 22px;
+            gap: 12px;
+          }
+
+          .brand-story h1 {
+            font-size: clamp(24px, 6.8vw, 32px);
+          }
+
+          .brand-story p,
+          .atelier-strip {
+            display: none;
+          }
+
+          .atelier-strip {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .intake-stage {
+            padding: 14px;
+            gap: 10px;
+          }
+
+          .stage-top {
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+          }
+
+          .progress-orbit {
+            width: 68px;
+          }
+
+          .progress-orbit span {
+            font-size: 18px;
+          }
+
+          .prompt-area {
+            padding: 16px;
+            gap: 14px;
+          }
+
+          .prompt-area h3 {
+            font-size: clamp(24px, 7vw, 34px);
+          }
+
+          .input-form,
+          .choice-grid,
+          .summary-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .send-btn,
+          .confirm-btn,
+          .finish-btn {
+            width: 100%;
+            padding: 0 14px;
+            min-height: 48px;
+          }
+
+          .response-dock,
+          .summary-panel {
+            padding: 12px;
+          }
+
+          .choice-btn {
+            min-height: 42px;
+            padding: 9px;
+          }
+        }
+      `}</style>
+
+      <aside className="cinema-panel">
         <video
           src={CONSULTATION_VIDEO_SRC}
           controls
@@ -281,977 +983,241 @@ export function HakaConsultation() {
           preload="metadata"
           poster={LOGO_SRC}
         />
-      </div>
-    </div>
-  );
-
-  // ─────────────────────────────────────────────────────────
-  //  RENDER
-  // ─────────────────────────────────────────────────────────
-  return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        background: "#030607",
-        color: "#FAFAFA",
-        fontFamily: "'Jost', sans-serif",
-        fontWeight: 300,
-        overflow: "hidden",
-      }}
-    >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Jost:wght@300;400;500&display=swap');
-        * { box-sizing: border-box; }
-        .no-scroll::-webkit-scrollbar { display: none; }
-        .no-scroll { scrollbar-width: none; }
-
-        @keyframes msgRise {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .msg-rise { animation: msgRise 0.5s ease forwards; }
-
-        @keyframes dotPulse {
-          0%,80%,100% { opacity: 0.25; transform: scale(1); }
-          40%          { opacity: 1; transform: scale(1.4); }
-        }
-        .tdot { animation: dotPulse 1.4s infinite ease-in-out; }
-        .tdot:nth-child(2) { animation-delay: 0.2s; }
-        .tdot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .spinner {
-          width: 12px; height: 12px;
-          border: 1px solid #8fb8c0;
-          border-top-color: #079b8f;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          display: inline-block;
-          flex-shrink: 0;
-        }
-
-        .svc-btn {
-          background: transparent;
-          border: 1px solid #123039;
-          color: #8fb8c0;
-          padding: 8px 12px;
-          font-family: 'Jost', sans-serif;
-          font-size: 10px;
-          font-weight: 300;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          white-space: nowrap;
-        }
-        .svc-btn:hover { border-color: #079b8f; color: #ffffff; }
-        .svc-btn.on { border-color: #079b8f; color: #FFFFFF; background: rgba(7,155,143,0.12); }
-
-        .confirm-btn {
-          background: none;
-          border: none;
-          border-bottom: 1px solid #079b8f;
-          color: #FFFFFF;
-          font-family: 'Jost', sans-serif;
-          font-size: 10px;
-          font-weight: 300;
-          letter-spacing: 3px;
-          text-transform: uppercase;
-          cursor: pointer;
-          padding: 3px 0;
-          transition: opacity 0.2s;
-        }
-        .confirm-btn:hover { opacity: 0.65; }
-        .confirm-btn:disabled { opacity: 0.18; cursor: default; }
-
-        .finish-btn {
-          background: #079b8f;
-          border: none;
-          color: #030607;
-          font-family: 'Jost', sans-serif;
-          font-size: 9px;
-          font-weight: 400;
-          letter-spacing: 4px;
-          text-transform: uppercase;
-          padding: 14px 0;
-          cursor: pointer;
-          width: 100%;
-          margin-top: 10px;
-          transition: opacity 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-        }
-        .finish-btn:hover:not(:disabled) { opacity: 0.82; }
-        .finish-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .input-field {
-          background: transparent;
-          border: none;
-          outline: none;
-          color: #FAFAFA;
-          font-family: 'Cormorant Garamond', serif;
-          font-size: max(16px, 18px);
-          font-weight: 300;
-          font-style: italic;
-          letter-spacing: 0.5px;
-          flex: 1;
-          padding: 0;
-          width: 100%;
-        }
-        .input-field::placeholder { color: #8fb8c0; font-style: italic; }
-
-        .send-btn {
-          background: transparent;
-          border: none;
-          color: #8fb8c0;
-          font-family: 'Jost', sans-serif;
-          font-size: 9px;
-          font-weight: 300;
-          letter-spacing: 3.5px;
-          text-transform: uppercase;
-          cursor: pointer;
-          padding: 0;
-          transition: color 0.2s;
-          flex-shrink: 0;
-        }
-        .send-btn:hover { color: #079b8f; }
-
-        .atelier-item {
-          font-size: 9px;
-          letter-spacing: 3px;
-          text-transform: uppercase;
-          color: #8fb8c0;
-          line-height: 2.4;
-          transition: color 0.2s;
-        }
-        .atelier-item:hover { color: #079b8f; }
-
-        .consult-video {
-          width: min(100%, 460px);
-          margin-top: 24px;
-          border: 1px solid #123039;
-          background:
-            linear-gradient(135deg, rgba(7,155,143,0.13), rgba(3,6,7,0.22) 42%),
-            #050a0b;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .consult-video::before,
-        .consult-video::after {
-          content: "";
-          position: absolute;
-          width: 16px;
-          height: 16px;
-          border-color: #079b8f;
-          pointer-events: none;
-          z-index: 2;
-        }
-
-        .consult-video::before {
-          top: -1px;
-          left: -1px;
-          border-top: 1px solid;
-          border-left: 1px solid;
-        }
-
-        .consult-video::after {
-          right: -1px;
-          bottom: -1px;
-          border-right: 1px solid;
-          border-bottom: 1px solid;
-        }
-
-        .consult-video-frame {
-          width: 100%;
-          height: min(110vh, 1000px);
-          position: relative;
-          display: grid;
-          place-items: center;
-          overflow: hidden;
-        }
-
-        .consult-video-frame video {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          display: block;
-          background: #030607;
-        }
-
-        .mobile-consult-video {
-          width: 100%;
-          max-width: 360px;
-          margin: 18px auto 0;
-        }
-
-        .mobile-consult-video .consult-video-frame {
-          height: min(100dvh, 650px);
-        }
-      `}</style>
-
-      {/* ═══════════════════════════════
-          LEFT / MOBILE HEADER
-      ═══════════════════════════════ */}
-      {isMobile ? (
-        <div
-          style={{
-            borderBottom: "1px solid #123039",
-            padding: "20px 24px 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            flexShrink: 0,
-          }}
-        >
+        <div className="cinema-shade" />
+        <div className="brand-mark">
           <div>
-            <img
-              src={LOGO_SRC}
-              alt="Growth Makers"
-              style={{
-                display: "block",
-                width: "min(150px, 46vw)",
-                height: "auto",
-                objectFit: "contain",
-              }}
-            />
-            <div
-              style={{
-                fontSize: "8px",
-                letterSpacing: "3px",
-                textTransform: "uppercase",
-                color: "#8fb8c0",
-                marginTop: "4px",
-              }}
-            >
+            <div className="accent-label">Personal Branding</div>
+            <img src={LOGO_SRC} alt="Grow Medico" />
+            {/* <div className="mini-label" style={{ marginTop: 10 }}>
               Fining the Digital Gap
-            </div>
+            </div> */}
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: "8px",
-                letterSpacing: "2.5px",
-                textTransform: "uppercase",
-                color: "#8fb8c0",
-                marginBottom: "3px",
-              }}
-            >
-              Chapter
-            </div>
-            <div
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "22px",
-                fontWeight: 300,
-                color: "#c8edf2",
-                lineHeight: 1,
-              }}
-            >
+          <div className="chapter-pill">
+            <div className="mini-label">Chapter</div>
+            <strong>
               {chapterNum}
-              <span style={{ fontSize: "13px", color: "#4f858f", margin: "0 4px" }}>/</span>
-              <span style={{ fontSize: "13px", color: "#4f858f" }}>{totalNum}</span>
-            </div>
-          </div>
-          {renderConsultationVideo("mobile-consult-video")}
-        </div>
-      ) : (
-        <div
-          style={{
-            width: "38%",
-            minHeight: "100vh",
-            borderRight: "1px solid #123039",
-            display: "flex",
-            flexDirection: "column",
-            padding: "36px 40px",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              fontSize: "9px",
-              letterSpacing: "4px",
-              textTransform: "uppercase",
-              color: "#079b8f",
-              marginBottom: "10px",
-            }}
-          >
-            Maison
-          </div>
-          <img
-            src={LOGO_SRC}
-            alt="Growth Makers"
-            style={{
-              display: "block",
-              width: "min(270px, 100%)",
-              height: "auto",
-              objectFit: "contain",
-            }}
-          />
-          <div
-            style={{ width: "36px", height: "1px", background: "#079b8f", margin: "18px 0 0" }}
-          />
-          {renderConsultationVideo()}
-          <div style={{ marginTop: "auto", paddingBottom: "28px" }}>
-            <p
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "clamp(20px, 2vw, 26px)",
-                fontWeight: 300,
-                fontStyle: "italic",
-                color: "#8fb8c0",
-                lineHeight: 1.45,
-                maxWidth: "300px",
-              }}
-            >
-              "We don't build campaigns.
-              <br />
-              We compose <span style={{ color: "#079b8f" }}>legacies.</span>"
-            </p>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "24px" }}>
-              <div style={{ width: "40px", height: "1px", background: "#079b8f" }} />
-              <span
-                style={{
-                  fontSize: "8px",
-                  letterSpacing: "4px",
-                  textTransform: "uppercase",
-                  color: "#8fb8c0",
-                }}
-              >
-                The House of Growmedico
-              </span>
-            </div>
-          </div>
-          <div style={{ borderTop: "1px solid #123039", paddingTop: "22px" }}>
-            <div
-              style={{
-                fontSize: "8px",
-                letterSpacing: "4px",
-                textTransform: "uppercase",
-                color: "#079b8f",
-                marginBottom: "14px",
-                textAlign: "center",
-              }}
-            >
-              Atelier
-            </div>
-            <div style={{ display: "flex" }}>
-              <div style={{ flex: 1 }}>
-                {ATELIER_LEFT.map((a) => (
-                  <div key={a} className="atelier-item">
-                    {a}
-                  </div>
-                ))}
-              </div>
-              <div style={{ flex: 1 }}>
-                {ATELIER_RIGHT.map((a) => (
-                  <div key={a} className="atelier-item">
-                    {a}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: "20px",
-              paddingTop: "14px",
-              borderTop: "1px solid #123039",
-            }}
-          >
-            <span
-              style={{
-                fontSize: "8px",
-                letterSpacing: "2.5px",
-                textTransform: "uppercase",
-                color: "#4f858f",
-              }}
-            >
-              Established Excellence
-            </span>
-            <span style={{ fontSize: "8px", letterSpacing: "2px", color: "#4f858f" }}>MMXXIV</span>
+              <span style={{ color: "#4f858f", fontSize: 15, margin: "0 5px" }}>/</span>
+              <span style={{ color: "#4f858f", fontSize: 15 }}>{totalNum}</span>
+            </strong>
           </div>
         </div>
-      )}
-
-      {/* ═══════════════════════════════
-          RIGHT PANEL — conversation
-      ═══════════════════════════════ */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minHeight: isMobile ? 0 : "100vh",
-          overflow: isMobile ? "hidden" : undefined,
-        }}
-      >
-        {/* Desktop right header */}
-        {!isMobile && (
-          <div
-            style={{
-              borderBottom: "1px solid #123039",
-              padding: "36px 48px 28px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: "9px",
-                  letterSpacing: "4px",
-                  textTransform: "uppercase",
-                  color: "#079b8f",
-                  marginBottom: "6px",
-                }}
-              >
-                Private Consultation
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontSize: "13px",
-                  fontStyle: "italic",
-                  color: "#8fb8c0",
-                }}
-              >
-                By invitation · In confidence
-              </div>
-              <div
-                style={{ width: "40px", height: "1px", background: "#123039", marginTop: "14px" }}
-              />
+        {/* <div className="brand-story">
+          <div>
+            <div className="accent-label" style={{ marginBottom: 12 }}>
+              Private Consultation
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div
-                style={{
-                  fontSize: "8px",
-                  letterSpacing: "3px",
-                  textTransform: "uppercase",
-                  color: "#8fb8c0",
-                  marginBottom: "5px",
-                }}
-              >
-                Chapter
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontSize: "30px",
-                  fontWeight: 300,
-                  color: "#c8edf2",
-                  lineHeight: 1,
-                }}
-              >
-                {chapterNum}
-                <span style={{ fontSize: "16px", color: "#4f858f", margin: "0 6px" }}>/</span>
-                <span style={{ fontSize: "16px", color: "#4f858f" }}>{totalNum}</span>
-              </div>
-            </div>
+            <h1>Build a brand patients remember.</h1>
           </div>
-        )}
+          <p>
+            "We don't build campaigns.
+            <br />
+            We compose <span style={{ color: "#16c6b3" }}>legacies.</span>"
+          </p>
+          <div className="atelier-strip">
+            {ATELIER_ITEMS.map((item) => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
+        </div> */}
+      </aside>
 
-        {/* Step pips */}
-        <div
-          style={{
-            display: "flex",
-            padding: isMobile ? "0 24px" : "0 48px",
-            gap: "3px",
-            borderBottom: "1px solid #071113",
-            flexShrink: 0,
-          }}
-        >
-          {STEP_ORDER.map((s, i) => (
-            <div
-              key={s}
-              style={{
-                flex: 1,
-                height: "2px",
-                background: i < stepIndex ? "#079b8f" : i === stepIndex ? "#16c6b3" : "#123039",
-                transition: "background 0.5s ease",
-                marginBottom: "-1px",
-              }}
-            />
-          ))}
-        </div>
+      <section className="intake-stage">
+        <header className="stage-top">
+          <div>
+            <div className="accent-label">Growmedico Intake Console</div>
+            <h2>By invitation. In confidence.</h2>
+          </div>
+          <div className="progress-orbit" aria-label={`Progress ${Math.round(progress)} percent`}>
+            <span>{Math.round(progress)}%</span>
+          </div>
+        </header>
 
-        {/* Chat area */}
-        <div
-          ref={chatRef}
-          className="no-scroll"
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: isMobile ? "28px 24px 16px" : "44px 48px 24px",
-            display: "flex",
-            flexDirection: "column",
-            gap: isMobile ? "24px" : "32px",
-          }}
-        >
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className="msg-rise"
-              style={{ textAlign: m.type === "user" ? "right" : "left" }}
-            >
-              {m.type === "bot" ? (
-                <div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: "5px",
-                        height: "5px",
-                        borderRadius: "50%",
-                        background: "#079b8f",
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: "8px",
-                        letterSpacing: "3.5px",
-                        textTransform: "uppercase",
-                        color: "#8fb8c0",
-                      }}
-                    >
-                      Growmedico
-                    </span>
-                  </div>
-                  <p
-                    style={{
-                      fontFamily: "'Cormorant Garamond', serif",
-                      fontSize: isMobile ? "24px" : "clamp(22px, 2.4vw, 30px)",
-                      fontWeight: 300,
-                      color: "#16c6b3",
-                      textShadow: "0 0 20px rgba(7,155,143,0.22)",
-                      lineHeight: 1.35,
-                      maxWidth: isMobile ? "100%" : "500px",
-                    }}
-                  >
-                    {m.text}
-                  </p>
+        <div className="console-grid">
+          <section className="question-console">
+            <div className="prompt-area">
+              <div>
+                <div className="mini-label" style={{ marginBottom: 20 }}>
+                  Current Question
                 </div>
-              ) : (
-                <div>
-                  <div
-                    style={{
-                      fontSize: "8px",
-                      letterSpacing: "3.5px",
-                      textTransform: "uppercase",
-                      color: "#8fb8c0",
-                      marginBottom: "7px",
-                    }}
-                  >
-                    You
+                {latestBotMessage ? (
+                  <h3>{latestBotMessage.text}</h3>
+                ) : (
+                  <div className="typing-dots">
+                    <span />
+                    <span />
+                    <span />
                   </div>
-                  <p
-                    style={{
-                      fontFamily: "'Cormorant Garamond', serif",
-                      fontSize: "26px",
-                      fontStyle: "italic",
-                      fontWeight: 300,
-                      color: "#ffffff",
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {m.text}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* Typing indicator */}
-          {typing && (
-            <div className="msg-rise">
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}
-              >
-                <div
-                  style={{
-                    width: "5px",
-                    height: "5px",
-                    borderRadius: "50%",
-                    background: "#079b8f",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: "8px",
-                    letterSpacing: "3.5px",
-                    textTransform: "uppercase",
-                    color: "#8fb8c0",
-                  }}
-                >
-                  Growmedico
+                )}
+              </div>
+              <div className="prompt-footer">
+                <span>Personal Branding Brief</span>
+                <span>
+                  {chapterNum} / {totalNum}
                 </span>
               </div>
-              <div style={{ display: "flex", gap: "7px", alignItems: "center" }}>
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="tdot"
-                    style={{
-                      width: "4px",
-                      height: "4px",
-                      borderRadius: "50%",
-                      background: "#079b8f",
-                      animationDelay: `${i * 0.2}s`,
-                    }}
-                  />
-                ))}
-              </div>
             </div>
-          )}
 
-          {/* Single-choice selectors */}
-          {OPTIONS[step] && (
-            <div
-              className="msg-rise"
-              style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}
-            >
-              {OPTIONS[step]?.map((option) => (
-                <button key={option} className="svc-btn" onClick={() => advance(option)}>
-                  {option}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Service selector */}
-          {step === "services" && (
-            <div
-              className="msg-rise"
-              style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-            >
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {SERVICES.map((s) => (
-                  <button
-                    key={s}
-                    className={`svc-btn${selected.includes(s) ? " on" : ""}`}
-                    onClick={() =>
-                      setSelected((prev) =>
-                        prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-                      )
-                    }
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <button
-                className="confirm-btn"
-                onClick={confirmServices}
-                disabled={!selected.length}
-                style={{ alignSelf: "flex-start" }}
-              >
-                Confirm Selection &rarr;
-              </button>
-            </div>
-          )}
-
-          {/* Summary */}
-          {step === "summary" && (
-            <div
-              className="msg-rise"
-              style={{
-                border: "1px solid #123039",
-                padding: isMobile ? "22px 20px" : "28px 32px",
-                maxWidth: isMobile ? "100%" : "460px",
-                position: "relative",
-              }}
-            >
-              {/* Corner brackets */}
-              {(
-                [
-                  {
-                    top: -1,
-                    left: -1,
-                    borderTop: "1px solid #079b8f",
-                    borderLeft: "1px solid #079b8f",
-                  },
-                  {
-                    top: -1,
-                    right: -1,
-                    borderTop: "1px solid #079b8f",
-                    borderRight: "1px solid #079b8f",
-                  },
-                  {
-                    bottom: -1,
-                    left: -1,
-                    borderBottom: "1px solid #079b8f",
-                    borderLeft: "1px solid #079b8f",
-                  },
-                  {
-                    bottom: -1,
-                    right: -1,
-                    borderBottom: "1px solid #079b8f",
-                    borderRight: "1px solid #079b8f",
-                  },
-                ] as React.CSSProperties[]
-              ).map((s, i) => (
-                <div key={i} style={{ position: "absolute", width: 14, height: 14, ...s }} />
-              ))}
-
-              <div
-                style={{
-                  fontSize: "8px",
-                  letterSpacing: "4px",
-                  textTransform: "uppercase",
-                  color: "#079b8f",
-                  marginBottom: "20px",
-                }}
-              >
-                Enquiry Summary
-              </div>
-
-              {[
-                { label: "Name", value: data.name },
-                { label: "Phone", value: data.phone },
-                { label: "Email", value: data.email },
-                { label: "Location", value: data.location },
-                { label: "Instagram", value: data.instagram },
-                { label: "Profession", value: data.profession },
-                { label: "Goal", value: data.brandingGoal },
-                { label: "Investment", value: data.investment },
-                { label: "Decision", value: data.decisionMaker },
-                { label: "Start", value: data.startTimeline },
-                { label: "Camera", value: data.cameraComfort },
-                { label: "Slot", value: data.consultationDate },
-              ].map(({ label, value }) => (
-                <div
-                  key={label}
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: "12px",
-                    padding: "9px 0",
-                    borderBottom: "1px solid #071113",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "8px",
-                      letterSpacing: "2.5px",
-                      textTransform: "uppercase",
-                      color: "#079b8f",
-                      minWidth: "58px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {label}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "'Cormorant Garamond', serif",
-                      fontSize: "15px",
-                      fontWeight: 300,
-                      color: "#d8f4f7",
-                      wordBreak: "break-all",
-                    }}
-                  >
-                    {value}
-                  </span>
-                </div>
-              ))}
-
-              <div style={{ padding: "10px 0", borderBottom: "1px solid #071113" }}>
-                <div
-                  style={{
-                    fontSize: "8px",
-                    letterSpacing: "2.5px",
-                    textTransform: "uppercase",
-                    color: "#079b8f",
-                    marginBottom: "10px",
-                  }}
-                >
-                  Services
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                  {data.services.map((s) => (
-                    <span
-                      key={s}
-                      style={{
-                        border: "1px solid #123039",
-                        color: "#c8edf2",
-                        fontSize: "8px",
-                        letterSpacing: "2px",
-                        textTransform: "uppercase",
-                        padding: "4px 10px",
-                      }}
-                    >
-                      {s}
-                    </span>
+            {step === "summary" ? (
+              <div className="summary-panel">
+                <div className="summary-grid">
+                  {summaryRows.map(({ label, value }) => (
+                    <div key={label} className="summary-item">
+                      <span>{label}</span>
+                      <p>{value || "-"}</p>
+                    </div>
                   ))}
                 </div>
-              </div>
-
-              {/* Confirm & Connect button */}
-              <button className="finish-btn" onClick={() => finish(data)} disabled={submitting}>
-                {submitting ? (
-                  <>
-                    <span
-                      className="spinner"
-                      style={{ borderColor: "#123039", borderTopColor: "#030607" }}
-                    />
-                    Sending...
-                  </>
-                ) : (
-                  "Confirm & Connect"
-                )}
-              </button>
-            </div>
-          )}
-
-          <div style={{ height: "8px", flexShrink: 0 }} />
-        </div>
-
-        {/* Input bar */}
-        {!OPTIONS[step] && step !== "services" && step !== "summary" && (
-          <div
-            style={{
-              borderTop: "1px solid #071113",
-              padding: isMobile ? "0 24px" : "0 48px",
-              flexShrink: 0,
-              background: "#030607",
-            }}
-          >
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (step === "consultationDate") {
-                  if (!input.trim() || !selectedTime) return;
-                  advance(`${input} at ${selectedTime}`);
-                  setInput("");
-                  setSelectedTime("");
-                  return;
-                }
-                if (!input.trim()) return;
-                advance(input);
-                setInput("");
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "16px",
-                  padding: "18px 0 16px",
-                  borderBottom: "1px solid #123039",
-                }}
-              >
-                <span
-                  style={{
-                    color: "#079b8f",
-                    fontSize: "16px",
-                    fontFamily: "'Cormorant Garamond', serif",
-                    flexShrink: 0,
-                    lineHeight: 1,
-                  }}
-                >
-                  ›
-                </span>
-                <input
-                  ref={inputRef}
-                  type={step === "consultationDate" ? "date" : "text"}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  min={
-                    step === "consultationDate"
-                      ? new Date().toISOString().split("T")[0]
-                      : undefined
-                  }
-                  placeholder={
-                    step === "consultationDate" ? "Select a date" : "Compose your reply..."
-                  }
-                  className="input-field"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                />
-                <button
-                  type="submit"
-                  className="send-btn"
-                  disabled={step === "consultationDate" && (!input || !selectedTime)}
-                  style={{
-                    opacity: step === "consultationDate" && (!input || !selectedTime) ? 0.35 : 1,
-                    cursor:
-                      step === "consultationDate" && (!input || !selectedTime)
-                        ? "default"
-                        : "pointer",
-                  }}
-                >
-                  {step === "consultationDate" ? "Set Slot &rarr;" : "Send &rarr;"}
+                <div className="service-tags">
+                  {data.services.map((service) => (
+                    <span key={service}>{service}</span>
+                  ))}
+                </div>
+                <button className="finish-btn" onClick={() => finish(data)} disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <span className="spinner" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Confirm & Connect"
+                  )}
                 </button>
               </div>
-              {step === "consultationDate" && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "8px",
-                    padding: "12px 0 10px",
-                    borderBottom: "1px solid #123039",
-                  }}
-                >
-                  {TIME_SLOTS.map((time) => (
-                    <button
-                      key={time}
-                      type="button"
-                      className={`svc-btn${selectedTime === time ? " on" : ""}`}
-                      onClick={() => setSelectedTime(time)}
-                    >
-                      {time}
+            ) : OPTIONS[step] ? (
+              <div className="response-dock">
+                <div className="choice-grid">
+                  {OPTIONS[step]?.map((option) => (
+                    <button key={option} className="choice-btn" onClick={() => advance(option)}>
+                      {option}
                     </button>
                   ))}
                 </div>
-              )}
-              {!isMobile && (
-                <div style={{ padding: "8px 0 12px" }}>
-                  <span
-                    style={{
-                      fontSize: "8px",
-                      letterSpacing: "3px",
-                      textTransform: "uppercase",
-                      color: "#079b8f",
-                    }}
-                  >
-                    Press Enter to Continue
-                  </span>
+              </div>
+            ) : step === "services" ? (
+              <div className="response-dock">
+                <div className="choice-panel">
+                  <div className="choice-grid">
+                    {SERVICES.map((service) => (
+                      <button
+                        key={service}
+                        className={`choice-btn${selected.includes(service) ? " active" : ""}`}
+                        onClick={() =>
+                          setSelected((current) =>
+                            current.includes(service)
+                              ? current.filter((item) => item !== service)
+                              : [...current, service],
+                          )
+                        }
+                      >
+                        {service}
+                      </button>
+                    ))}
+                  </div>
+                  <button className="confirm-btn" onClick={confirmServices} disabled={!selected.length}>
+                    Confirm Selection
+                  </button>
                 </div>
-              )}
-            </form>
-          </div>
-        )}
+              </div>
+            ) : (
+              <div className="response-dock">
+                <form
+                  className="input-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (step === "consultationDate") {
+                      if (!input.trim() || !selectedTime) return;
+                      advance(`${input} at ${selectedTime}`);
+                      setInput("");
+                      setSelectedTime("");
+                      return;
+                    }
+                    if (!input.trim()) return;
+                    advance(input);
+                    setInput("");
+                  }}
+                >
+                  <input
+                    ref={inputRef}
+                    type={step === "consultationDate" ? "date" : "text"}
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    min={
+                      step === "consultationDate"
+                        ? new Date().toISOString().split("T")[0]
+                        : undefined
+                    }
+                    placeholder={step === "consultationDate" ? "Select a date" : "Type your answer here..."}
+                    className="input-field"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="submit"
+                    className="send-btn"
+                    disabled={step === "consultationDate" && (!input || !selectedTime)}
+                  >
+                    {step === "consultationDate" ? "Set Slot" : "Send"}
+                  </button>
+                  {step === "consultationDate" && (
+                    <div className="time-row">
+                      {TIME_SLOTS.map((time) => (
+                        <button
+                          key={time}
+                          type="button"
+                          className={`choice-btn${selectedTime === time ? " active" : ""}`}
+                          onClick={() => setSelectedTime(time)}
+                        >
+                          {time}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </form>
+              </div>
+            )}
+          </section>
 
-        {isMobile && (
-          <div
-            style={{
-              height: "env(safe-area-inset-bottom, 0px)",
-              background: "#030607",
-              flexShrink: 0,
-            }}
-          />
-        )}
-      </div>
-    </div>
+          <aside className="side-stack">
+            <section className="status-card">
+              <div>
+                <div className="mini-label">Brief Completion</div>
+                <div className="status-number">{chapterNum}</div>
+              </div>
+              <div className="metric-row">
+                <div className="metric-box">
+                  <strong>{answeredCount}</strong>
+                  <div className="mini-label">Answered</div>
+                </div>
+                <div className="metric-box">
+                  <strong>{totalNum}</strong>
+                  <div className="mini-label">Total</div>
+                </div>
+              </div>
+            </section>
+
+            <section className="answers-card">
+              <div className="mini-label">Your Inputs</div>
+              <div className="answer-list">
+                {userMessages.length ? (
+                  userMessages.slice(-8).map((message, index) => (
+                    <div key={message.id} className="answer-chip">
+                      <span>Answer {String(index + Math.max(1, userMessages.length - 7)).padStart(2, "0")}</span>
+                      <p>{message.text}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="answer-chip">
+                    <span>Waiting</span>
+                    <p>Your answers will appear here.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
   );
 }
