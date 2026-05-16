@@ -269,6 +269,22 @@ export function HakaConsultation() {
   const chapterNum = String(stepIndex + 1).padStart(2, "0");
   const totalNum = String(STEP_ORDER.length).padStart(2, "0");
 
+  const renderConsultationVideo = (className = "") => (
+    <div className={`consult-video${className ? ` ${className}` : ""}`}>
+      <div className="consult-video-frame">
+        <video
+          src={CONSULTATION_VIDEO_SRC}
+          controls
+          autoPlay
+          loop
+          playsInline
+          preload="metadata"
+          poster={LOGO_SRC}
+        />
+      </div>
+    </div>
+  );
+
   // ─────────────────────────────────────────────────────────
   //  RENDER
   // ─────────────────────────────────────────────────────────
@@ -418,7 +434,7 @@ export function HakaConsultation() {
 
         .consult-video {
           width: min(100%, 460px);
-          margin-top: 30px;
+          margin-top: 24px;
           border: 1px solid #123039;
           background:
             linear-gradient(135deg, rgba(7,155,143,0.13), rgba(3,6,7,0.22) 42%),
@@ -454,18 +470,29 @@ export function HakaConsultation() {
 
         .consult-video-frame {
           width: 100%;
-          height: clamp(540px, 52vh, 520px);
+          height: min(110vh, 1000px);
           position: relative;
           display: grid;
           place-items: center;
+          overflow: hidden;
         }
 
         .consult-video-frame video {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
           display: block;
           background: #030607;
+        }
+
+        .mobile-consult-video {
+          width: 100%;
+          max-width: 360px;
+          margin: 18px auto 0;
+        }
+
+        .mobile-consult-video .consult-video-frame {
+          height: min(100dvh, 650px);
         }
       `}</style>
 
@@ -480,6 +507,7 @@ export function HakaConsultation() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexWrap: "wrap",
             flexShrink: 0,
           }}
         >
@@ -532,6 +560,7 @@ export function HakaConsultation() {
               <span style={{ fontSize: "13px", color: "#4f858f" }}>{totalNum}</span>
             </div>
           </div>
+          {renderConsultationVideo("mobile-consult-video")}
         </div>
       ) : (
         <div
@@ -569,20 +598,7 @@ export function HakaConsultation() {
           <div
             style={{ width: "36px", height: "1px", background: "#079b8f", margin: "18px 0 0" }}
           />
-          <div className="consult-video">
-            <div className="consult-video-frame">
-              <video
-                src={CONSULTATION_VIDEO_SRC}
-                controls
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                poster={LOGO_SRC}
-              />
-            </div>
-          </div>
+          {renderConsultationVideo()}
           <div style={{ marginTop: "auto", paddingBottom: "28px" }}>
             <p
               style={{
@@ -609,7 +625,7 @@ export function HakaConsultation() {
                   color: "#8fb8c0",
                 }}
               >
-                The House of Haka
+                The House of Growmedico
               </span>
             </div>
           </div>
@@ -884,7 +900,7 @@ export function HakaConsultation() {
                     color: "#8fb8c0",
                   }}
                 >
-                  Haka
+                  Growmedico
                 </span>
               </div>
               <div style={{ display: "flex", gap: "7px", alignItems: "center" }}>
