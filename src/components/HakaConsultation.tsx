@@ -152,6 +152,7 @@ export function HakaConsultation() {
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [data, setData] = useState<FormData>({
     name: "",
@@ -188,16 +189,23 @@ export function HakaConsultation() {
   };
 
   useEffect(() => {
-    if (didInit.current) return;
-    didInit.current = true;
-    setTimeout(() => pushBot(PROMPTS.name), 350);
+    const timer = window.setTimeout(() => setIsLoading(false), 3000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
+    if (isLoading) return;
+    if (didInit.current) return;
+    didInit.current = true;
+    setTimeout(() => pushBot(PROMPTS.name), 350);
+  }, [isLoading]);
+
+  useEffect(() => {
+    if (isLoading) return;
     if (!OPTIONS[step] && step !== "services" && step !== "summary") {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [step]);
+  }, [isLoading, step]);
 
   const advance = (value: string) => {
     if (step === "email" && !isValidEmail(value)) {
@@ -273,6 +281,103 @@ export function HakaConsultation() {
     { label: "Camera", value: data.cameraComfort },
     { label: "Slot", value: data.consultationDate },
   ];
+
+  if (isLoading) {
+    return (
+      <main className="consult-loader">
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap');
+
+          * { box-sizing: border-box; }
+
+          .consult-loader {
+            height: 100dvh;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            background:
+              radial-gradient(circle at 50% 42%, rgba(7,155,143,0.20), transparent 30%),
+              linear-gradient(180deg, #020506 0%, #041012 100%);
+            color: #f7fbfb;
+            font-family: 'Outfit', 'Jost', sans-serif;
+            position: relative;
+          }
+
+          .consult-loader::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+              linear-gradient(90deg, rgba(7,155,143,0.06) 0 1px, transparent 1px 100%),
+              linear-gradient(180deg, rgba(143,184,192,0.035) 0 1px, transparent 1px 100%);
+            background-size: 56px 56px;
+            opacity: 0.35;
+          }
+
+          .loader-card {
+            width: min(420px, calc(100vw - 44px));
+            border: 1px solid rgba(7,155,143,0.28);
+            background: rgba(2,5,6,0.74);
+            padding: 34px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 30px 100px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.04);
+          }
+
+          .loader-card img {
+            width: min(210px, 68%);
+            height: auto;
+            display: block;
+            margin: 0 auto 20px;
+          }
+
+          .loader-label {
+            color: #16c6b3;
+            font-size: 8px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 22px;
+          }
+
+          .loader-line {
+            height: 2px;
+            background: rgba(18,48,57,0.9);
+            overflow: hidden;
+          }
+
+          .loader-line span {
+            display: block;
+            width: 42%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, #16c6b3, transparent);
+            animation: loadSweep 1.15s ease-in-out infinite;
+          }
+
+          .loader-text {
+            margin: 18px 0 0;
+            color: #8fb8c0;
+            font-size: 8px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+          }
+
+          @keyframes loadSweep {
+            from { transform: translateX(-120%); }
+            to { transform: translateX(260%); }
+          }
+        `}</style>
+        <section className="loader-card">
+          <img src={LOGO_SRC} alt="Grow Medico" />
+          <div className="loader-label">Preparing Consultation</div>
+          <div className="loader-line">
+            <span />
+          </div>
+          <p className="loader-text">Personal branding intake loading</p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="consult-page">
