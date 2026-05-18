@@ -6,35 +6,31 @@ const LOGO_SRC = "/gmlogo1.webp";
 
 type Step =
   | "name"
-  | "phone"
   | "email"
-  | "location"
-  | "instagram"
-  | "profession"
-  | "brandingGoal"
-  | "investment"
-  | "decisionMaker"
-  | "startTimeline"
-  | "cameraComfort"
+  | "phone"
+  | "professionalBackground"
+  | "digitalExperience"
+  | "mainStruggle"
+  | "revenueMechanism"
+  | "platformPriorities"
+  | "ultimateGoal"
+  | "investmentMindset"
   | "consultationDate"
-  | "services"
   | "summary"
   | "done";
 
 interface FormData {
   name: string;
-  phone: string;
   email: string;
-  location: string;
-  instagram: string;
-  profession: string;
-  brandingGoal: string;
-  investment: string;
-  decisionMaker: string;
-  startTimeline: string;
-  cameraComfort: string;
+  phone: string;
+  professionalBackground: string;
+  digitalExperience: string;
+  mainStruggle: string;
+  revenueMechanism: string;
+  platformPriorities: string;
+  ultimateGoal: string;
+  investmentMindset: string;
   consultationDate: string;
-  services: string[];
 }
 
 interface StoredSubmission extends FormData {
@@ -43,70 +39,83 @@ interface StoredSubmission extends FormData {
 
 interface Message {
   id: number;
-  type: "bot" | "user";
+  type: "bot" | "user" | "notice";
   text: string;
 }
 
-const SERVICES = [
-  "Digital Marketing",
-  "Website Development",
-  "App Development",
-  "Photography & Videography",
-  "Performance Marketing",
-  "Social Media Management",
-  "Video Editing",
-  "Personal Branding",
-];
+const OPTIONS: Partial<Record<Step, string[]>> = {
+  professionalBackground: [
+    "I run an established business / agency / clinic (Looking to scale)",
+    "I am a freelancer / consultant / coach (Looking to get more clients)",
+    "I am an executive / working professional (Looking to build my career profile)",
+    "I am a creator / artist / individual looking to start a fresh personal brand",
+  ],
+  digitalExperience: [
+    "I have never tried it before (Starting completely from scratch)",
+    "I have tried posting a few times, but couldn't stay consistent",
+    "I post regularly, but I'm not getting the business results or views I want",
+    "I already have an active brand, but I want an agency to take it to the next level",
+  ],
+  mainStruggle: [
+    "Time Limitations: I am too busy with my daily work to handle scripting, editing, and posting.",
+    "Content Strategy: I don't know what to talk about to get business or how to structure videos.",
+    "Technical Production: My current content looks amateur; I need professional/premium editing.",
+    "Distribution: We make great content, but the algorithms are giving us zero distribution or leads.",
+  ],
+  revenueMechanism: [
+    "High-Ticket Services or Retainers (Charging premium prices per client)",
+    "Mid-Tier Products, Courses, Consulting, or One-time Projects",
+    "Driving local footfalls / walk-ins to a physical location (Clinic, Office, Store)",
+    "I don't have a clear product/service yet; I want to build an audience first",
+  ],
+  platformPriorities: [
+    "Instagram & YouTube Shorts (Visual-heavy, rapid reach, authority scaling)",
+    "YouTube Long-Form & Podcasts (Deep education, high-intent trust building)",
+    "LinkedIn & X (Corporate decision-makers, high-ticket B2B clients, text-heavy authority)",
+    "Omnichannel (I want to test multiple formats across all major platforms)",
+  ],
+  ultimateGoal: [
+    "I want to get more high-paying clients, leads, or sales for my business.",
+    "I want to build trust, authority, and become a recognized name in my industry.",
+    "I want to overcome my hesitation, launch my profile, and build a base of real followers.",
+    "I just want millions of random viral views as quickly as possible.",
+  ],
+  investmentMindset: [
+    "I am ready to invest in a professional agency to get top-tier results.",
+    "I have a budget, but I need to start with a smaller trial phase to see how it works first.",
+    "I am currently just exploring information and looking for low-cost freelance options.",
+  ],
+};
 
 const TIME_SLOTS = ["10:00 AM", "12:00 PM", "02:00 PM", "04:00 PM", "06:00 PM"];
 
-const OPTIONS: Partial<Record<Step, string[]>> = {
-  profession: ["Doctor", "Clinic Owner", "Healthcare Professional", "Business Owner"],
-  brandingGoal: [
-    "Get more patient/client enquiries",
-    "Build authority and visibility",
-    "Generate leads through social media",
-    "Improve online presence",
-  ],
-  investment: [
-    "Yes - I'm aligned with the Rs. 1.5 lac + GST/month investment.",
-    "No - I'm okay growing at my current pace.",
-  ],
-  decisionMaker: ["Yes", "No", "Need to discuss with my team/partner"],
-  startTimeline: ["Immediately", "Within 1 month", "Just exploring"],
-  cameraComfort: ["Yes", "No", "May be - Will need training."],
-};
-
 const PROMPTS: Record<Exclude<Step, "summary" | "done">, string> = {
   name: "May we begin with your full name?",
-  phone: "Your phone number, please?",
   email: "And your email address?",
-  location: "Where in the world are you based?",
-  instagram: "What's your Instagram handle? Please provide the link.",
-  profession: "What best describes your profession?",
-  brandingGoal: "What is your primary goal with personal branding?",
-  investment: "Are you open to investing Rs. 1.5 lac + GST/month in personal branding?",
-  decisionMaker: "Are you the decision-maker for this project?",
-  startTimeline: "How soon are you planning to start?",
-  cameraComfort: "Are you comfortable facing the camera and speaking?",
+  phone: "Your phone number, please?",
+  professionalBackground: "What is your current professional role or business model?",
+  digitalExperience: "What is your current experience level with content creation and personal branding?",
+  mainStruggle: "What has been the biggest challenge keeping you from starting or scaling your personal brand?",
+  revenueMechanism: "How does your business currently monetize - or intend to monetize - your personal brand's audience?",
+  platformPriorities: "Where do you want to dominate and build your primary digital presence?",
+  ultimateGoal: "What is the primary result you want to achieve through your personal brand in the next 90 days?",
+  investmentMindset:
+    "Building a premium personal brand through a dedicated agency requires an investment in strategy and production. What is your approach to this project?",
   consultationDate: "Please pick your preferred consultation date and time.",
-  services: "Which of our ateliers interest you?",
 };
 
 const STEP_ORDER: Step[] = [
   "name",
-  "phone",
   "email",
-  "location",
-  "instagram",
-  "profession",
-  "brandingGoal",
-  "investment",
-  "decisionMaker",
-  "startTimeline",
-  "cameraComfort",
+  "phone",
+  "professionalBackground",
+  "digitalExperience",
+  "mainStruggle",
+  "revenueMechanism",
+  "platformPriorities",
+  "ultimateGoal",
+  "investmentMindset",
   "consultationDate",
-  "services",
   "summary",
 ];
 
@@ -144,25 +153,22 @@ export function HakaConsultation() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typing, setTyping] = useState(false);
   const [input, setInput] = useState("");
-  const [selected, setSelected] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const [data, setData] = useState<FormData>({
     name: "",
-    phone: "",
     email: "",
-    location: "",
-    instagram: "",
-    profession: "",
-    brandingGoal: "",
-    investment: "",
-    decisionMaker: "",
-    startTimeline: "",
-    cameraComfort: "",
+    phone: "",
+    professionalBackground: "",
+    digitalExperience: "",
+    mainStruggle: "",
+    revenueMechanism: "",
+    platformPriorities: "",
+    ultimateGoal: "",
+    investmentMindset: "",
     consultationDate: "",
-    services: [],
   });
 
   const chatRef = useRef<HTMLDivElement>(null);
@@ -184,6 +190,11 @@ export function HakaConsultation() {
     setMessages((current) => [...current, { id: idRef.current, type: "user", text }]);
   };
 
+  const pushNotice = (text: string) => {
+    idRef.current++;
+    setMessages((current) => [...current, { id: idRef.current, type: "notice", text }]);
+  };
+
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 3000);
     return () => window.clearTimeout(timer);
@@ -198,11 +209,11 @@ export function HakaConsultation() {
   useEffect(() => {
     if (isLoading) return;
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, typing, step, selected]);
+  }, [messages, typing, step]);
 
   useEffect(() => {
     if (isLoading) return;
-    if (!OPTIONS[step] && step !== "services" && step !== "summary") {
+    if (!OPTIONS[step] && step !== "summary") {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isLoading, step]);
@@ -214,54 +225,41 @@ export function HakaConsultation() {
 
     if (step === "email" && !isValidEmail(value)) {
       pushUser(value);
-      setTimeout(
-        () => pushBot("That email address looks incorrect. Please provide a valid email like name@example.com."),
-        250,
-      );
+      setTimeout(() => pushNotice("That email address looks incorrect. Please provide a valid email like name@example.com."), 250);
       return;
     }
 
     if (step === "phone" && !isValidPhone(trimmedValue)) {
       pushUser(trimmedValue);
-      setTimeout(
-        () => pushBot("That phone number looks incorrect. Please enter exactly 10 digits."),
-        250,
-      );
+      setTimeout(() => pushNotice("That phone number looks incorrect. Please enter exactly 10 digits."), 250);
       return;
     }
 
     pushUser(trimmedValue);
     const next: Partial<Record<Step, Step>> = {
-      name: "phone",
-      phone: "email",
-      email: "location",
-      location: "instagram",
-      instagram: "profession",
-      profession: "brandingGoal",
-      brandingGoal: "investment",
-      investment: "decisionMaker",
-      decisionMaker: "startTimeline",
-      startTimeline: "cameraComfort",
-      cameraComfort: "consultationDate",
-      consultationDate: "services",
+      name: "email",
+      email: "phone",
+      phone: "professionalBackground",
+      professionalBackground: "digitalExperience",
+      digitalExperience: "mainStruggle",
+      mainStruggle: "revenueMechanism",
+      revenueMechanism: "platformPriorities",
+      platformPriorities: "ultimateGoal",
+      ultimateGoal: "investmentMindset",
+      investmentMindset: "consultationDate",
+      consultationDate: "summary",
     };
     const nextStep = next[step];
 
     if (nextStep) {
       setData((current) => ({ ...current, [step]: trimmedValue }));
       setStep(nextStep);
-      pushBot(PROMPTS[nextStep as Exclude<Step, "summary" | "done">]);
+      if (nextStep === "summary") {
+        pushBot("A perfect brief. Please review your consultation summary.");
+      } else {
+        pushBot(PROMPTS[nextStep as Exclude<Step, "summary" | "done">]);
+      }
     }
-  };
-
-  const confirmServices = () => {
-    if (!selected.length) return;
-    pushUser(selected.join(" | "));
-    setData((current) => ({ ...current, services: selected }));
-    setTimeout(() => {
-      pushBot("A perfect brief. Allow us to present your summary.");
-      setStep("summary");
-    }, 300);
   };
 
   const finish = (finalData: FormData) => {
@@ -276,23 +274,20 @@ export function HakaConsultation() {
     setStep("name");
     setMessages([]);
     setInput("");
-    setSelected([]);
     setSelectedTime("");
     setSubmitting(false);
     setData({
       name: "",
-      phone: "",
       email: "",
-      location: "",
-      instagram: "",
-      profession: "",
-      brandingGoal: "",
-      investment: "",
-      decisionMaker: "",
-      startTimeline: "",
-      cameraComfort: "",
+      phone: "",
+      professionalBackground: "",
+      digitalExperience: "",
+      mainStruggle: "",
+      revenueMechanism: "",
+      platformPriorities: "",
+      ultimateGoal: "",
+      investmentMindset: "",
       consultationDate: "",
-      services: [],
     });
     didInit.current = false;
     setTimeout(() => {
@@ -307,17 +302,16 @@ export function HakaConsultation() {
 
   const summaryRows = [
     { label: "Name", value: data.name },
-    { label: "Phone", value: data.phone },
     { label: "Email", value: data.email },
-    { label: "Location", value: data.location },
-    { label: "Instagram", value: data.instagram },
-    { label: "Profession", value: data.profession },
-    { label: "Goal", value: data.brandingGoal },
-    { label: "Investment", value: data.investment },
-    { label: "Decision", value: data.decisionMaker },
-    { label: "Start", value: data.startTimeline },
-    { label: "Camera", value: data.cameraComfort },
-    { label: "Slot", value: data.consultationDate },
+    { label: "Phone", value: data.phone },
+    { label: "Professional Background", value: data.professionalBackground },
+    { label: "Digital Experience", value: data.digitalExperience },
+    { label: "Main Struggle", value: data.mainStruggle },
+    { label: "Revenue Mechanism", value: data.revenueMechanism },
+    { label: "Platform Priorities", value: data.platformPriorities },
+    { label: "Ultimate Goal", value: data.ultimateGoal },
+    { label: "Investment Mindset", value: data.investmentMindset },
+    { label: "Preferred Slot", value: data.consultationDate },
   ];
 
   const botAvatar = (
@@ -367,7 +361,6 @@ export function HakaConsultation() {
       place-items: center;
       z-index: 2;
       border: 1px solid rgba(7,155,143,0.38);
-      box-shadow: 0 18px 40px rgba(0, 54, 50, 0.18);
     }
     .logo-crown img {
       width: 224px;
@@ -514,6 +507,24 @@ export function HakaConsultation() {
       text-align: right;
       padding-right: 26px;
       margin: 0 0 30px;
+    }
+    .notice-row {
+      display: flex;
+      justify-content: center;
+      margin: 12px 0 18px;
+      padding-right: 30px;
+    }
+    .notice-bubble {
+      max-width: 520px;
+      border: 1px solid rgba(7, 155, 143, 0.22);
+      border-radius: 999px;
+      background: #eef8f7;
+      color: #173f43;
+      padding: 11px 18px;
+      font-size: 16px;
+      line-height: 1.25;
+      text-align: center;
+      box-shadow: 0 8px 22px rgba(0, 54, 50, 0.06);
     }
     .option-bubble {
       max-width: 570px;
@@ -787,37 +798,6 @@ export function HakaConsultation() {
       );
     }
 
-    if (step === "services") {
-      return (
-        <div className="row">
-          {botAvatar}
-          <div className="option-bubble">
-            <p className="option-title">{PROMPTS.services}</p>
-            <div className="choice-list">
-              {SERVICES.map((service) => (
-                <button
-                  key={service}
-                  className={`choice-btn${selected.includes(service) ? " active" : ""}`}
-                  onClick={() =>
-                    setSelected((current) =>
-                      current.includes(service)
-                        ? current.filter((item) => item !== service)
-                        : [...current, service],
-                    )
-                  }
-                >
-                  {service}
-                </button>
-              ))}
-            </div>
-            <button className="confirm-btn" onClick={confirmServices} disabled={!selected.length}>
-              Confirm Selection
-            </button>
-          </div>
-        </div>
-      );
-    }
-
     return null;
   };
 
@@ -836,10 +816,6 @@ export function HakaConsultation() {
                 <p>{value || "-"}</p>
               </div>
             ))}
-            <div className="summary-item">
-              <span>Services</span>
-              <p>{data.services.join(", ") || "-"}</p>
-            </div>
           </div>
           <button className="finish-btn" onClick={() => finish(data)} disabled={submitting}>
             {submitting ? "Sending..." : "Confirm & Connect"}
@@ -898,7 +874,11 @@ export function HakaConsultation() {
             <div className="time">Just now</div>
 
             {messages.map((message) =>
-              message.type === "bot" ? (
+              message.type === "notice" ? (
+                <div key={message.id} className="notice-row">
+                  <div className="notice-bubble">{message.text}</div>
+                </div>
+              ) : message.type === "bot" ? (
                 <div key={message.id}>
                   <div className="row">
                     {botAvatar}
@@ -928,14 +908,14 @@ export function HakaConsultation() {
           </div>
         </div>
 
-        {!OPTIONS[step] && step !== "services" && step !== "summary" && (
+        {!OPTIONS[step] && step !== "summary" && (
           <div className="chat-input">
             <form
               onSubmit={(event) => {
                 event.preventDefault();
                 if (step === "consultationDate") {
                   if (!input.trim() || !selectedTime) return;
-                  advance(`${input} at ${selectedTime}`);
+                  advance(`${input.trim()} at ${selectedTime}`);
                   setInput("");
                   setSelectedTime("");
                   return;
@@ -964,9 +944,7 @@ export function HakaConsultation() {
                 <button
                   type="submit"
                   className="send-btn"
-                  disabled={
-                    step === "consultationDate" ? !input.trim() || !selectedTime : !input.trim()
-                  }
+                  disabled={step === "consultationDate" ? !input.trim() || !selectedTime : !input.trim()}
                   aria-label="Send answer"
                 >
                   ➤
