@@ -41,7 +41,23 @@ interface Message {
   id: number;
   type: "bot" | "user" | "notice";
   text: string;
+  createdAt: number;
 }
+
+const formatRelativeTime = (createdAt: number, now: number) => {
+  const seconds = Math.max(0, Math.floor((now - createdAt) / 1000));
+
+  if (seconds < 60) return "Just now";
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+};
 
 const OPTIONS: Partial<Record<Step, string[]>> = {
   professionalBackground: [
@@ -156,6 +172,8 @@ export function HakaConsultation() {
   const [selectedTime, setSelectedTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+  const [introCreatedAt, setIntroCreatedAt] = useState(() => Date.now());
 
   const [data, setData] = useState<FormData>({
     name: "",
@@ -181,23 +199,41 @@ export function HakaConsultation() {
     setTimeout(() => {
       setTyping(false);
       idRef.current++;
-      setMessages((current) => [...current, { id: idRef.current, type: "bot", text }]);
+      setMessages((current) => [...current, { id: idRef.current, type: "bot", text, createdAt: Date.now() }]);
     }, 500);
   };
 
   const pushUser = (text: string) => {
     idRef.current++;
-    setMessages((current) => [...current, { id: idRef.current, type: "user", text }]);
+    setMessages((current) => [...current, { id: idRef.current, type: "user", text, createdAt: Date.now() }]);
   };
 
   const pushNotice = (text: string) => {
     idRef.current++;
-    setMessages((current) => [...current, { id: idRef.current, type: "notice", text }]);
+    setMessages((current) => [...current, { id: idRef.current, type: "notice", text, createdAt: Date.now() }]);
   };
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 3000);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -276,6 +312,8 @@ export function HakaConsultation() {
     setInput("");
     setSelectedTime("");
     setSubmitting(false);
+    setIntroCreatedAt(Date.now());
+    setNow(Date.now());
     setData({
       name: "",
       email: "",
@@ -324,7 +362,10 @@ export function HakaConsultation() {
     @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap');
     * { box-sizing: border-box; }
     .gold-page {
-      min-height: 100dvh;
+      position: fixed;
+      inset: 0;
+      height: 100dvh;
+      width: 100%;
       background:
         radial-gradient(circle at 50% 12%, rgba(22,198,179,0.24), transparent 28%),
         linear-gradient(180deg, #030607 0%, #063634 48%, #e8fbf8 100%);
@@ -871,7 +912,7 @@ export function HakaConsultation() {
                 Please fill the information below to book consultation with our team.
               </div>
             </div>
-            <div className="time">Just now</div>
+            <div className="time">{formatRelativeTime(introCreatedAt, now)}</div>
 
             {messages.map((message) =>
               message.type === "notice" ? (
@@ -884,14 +925,14 @@ export function HakaConsultation() {
                     {botAvatar}
                     <div className="bubble">{message.text}</div>
                   </div>
-                  <div className="time">Just now</div>
+                  <div className="time">{formatRelativeTime(message.createdAt, now)}</div>
                 </div>
               ) : (
                 <div key={message.id}>
                   <div className="row user">
                     <div className="user-bubble">{message.text}</div>
                   </div>
-                  <div className="user-time">Just now</div>
+                  <div className="user-time">{formatRelativeTime(message.createdAt, now)}</div>
                 </div>
               ),
             )}
