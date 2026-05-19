@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 
 const LOCAL_STORAGE_KEY = "hakaConsultationSubmissions";
 const LOGO_SRC = "/gmlogo1.webp";
+const POPUP_VIDEO_SRC = "/adss.mov";
 
 type Step =
   | "name"
@@ -18,6 +19,8 @@ type Step =
   | "consultationDate"
   | "summary"
   | "done";
+
+type FieldStep = Exclude<Step, "summary" | "done">;
 
 interface FormData {
   name: string;
@@ -171,7 +174,10 @@ export function HakaConsultation() {
   const [input, setInput] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [showVideoPopup, setShowVideoPopup] = useState(true);
+  const [videoNeedsInteraction, setVideoNeedsInteraction] = useState(false);
+  const [showAllData, setShowAllData] = useState(false);
+  const [editingStep, setEditingStep] = useState<FieldStep | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [introCreatedAt, setIntroCreatedAt] = useState(() => Date.now());
 
@@ -191,6 +197,7 @@ export function HakaConsultation() {
 
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const idRef = useRef(0);
   const didInit = useRef(false);
 
@@ -214,11 +221,6 @@ export function HakaConsultation() {
   };
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setIsLoading(false), 3000);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
 
@@ -237,22 +239,43 @@ export function HakaConsultation() {
   }, []);
 
   useEffect(() => {
-    if (isLoading || didInit.current) return;
+    if (didInit.current) return;
     didInit.current = true;
-    setTimeout(() => pushBot(PROMPTS.name), 350);
-  }, [isLoading]);
+    const timer = window.setTimeout(() => pushBot(PROMPTS.name), 350);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
-    if (isLoading) return;
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, typing, step]);
 
   useEffect(() => {
-    if (isLoading) return;
     if (!OPTIONS[step] && step !== "summary") {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isLoading, step]);
+  }, [step]);
+
+  const playVideoWithSound = () => {
+    if (!videoRef.current) return;
+
+    videoRef.current.muted = false;
+    videoRef.current.defaultMuted = false;
+    videoRef.current.volume = 1;
+
+    videoRef.current
+      .play()
+      .then(() => setVideoNeedsInteraction(false))
+      .catch(() => {
+        setVideoNeedsInteraction(true);
+      });
+  };
+
+  useEffect(() => {
+    if (!showVideoPopup) return;
+
+    const timer = window.setTimeout(playVideoWithSound, 100);
+    return () => window.clearTimeout(timer);
+  }, [showVideoPopup]);
 
   const advance = (value: string) => {
     const trimmedValue = value.trim();
@@ -272,6 +295,15 @@ export function HakaConsultation() {
     }
 
     pushUser(trimmedValue);
+
+    if (editingStep === step) {
+      setData((current) => ({ ...current, [step]: trimmedValue }));
+      setEditingStep(null);
+      setStep("summary");
+      pushBot("Updated. Please review your consultation summary.");
+      return;
+    }
+
     const next: Partial<Record<Step, Step>> = {
       name: "email",
       email: "phone",
@@ -312,6 +344,8 @@ export function HakaConsultation() {
     setInput("");
     setSelectedTime("");
     setSubmitting(false);
+    setShowAllData(false);
+    setEditingStep(null);
     setIntroCreatedAt(Date.now());
     setNow(Date.now());
     setData({
@@ -335,22 +369,51 @@ export function HakaConsultation() {
     }, 250);
   };
 
+  const closeVideoPopup = () => {
+    videoRef.current?.pause();
+    setShowVideoPopup(false);
+    setVideoNeedsInteraction(false);
+  };
+
+  const editField = (field: FieldStep) => {
+    const currentValue = data[field];
+    setShowAllData(false);
+    setEditingStep(field);
+    setStep(field);
+    setTyping(false);
+
+    if (field === "consultationDate") {
+      const [date = "", time = ""] = currentValue.split(" at ");
+      setInput(date);
+      setSelectedTime(time);
+    } else if (OPTIONS[field]) {
+      setInput("");
+      setSelectedTime("");
+    } else {
+      setInput(currentValue);
+      setSelectedTime("");
+    }
+
+    pushNotice(`Editing ${PROMPTS[field]}`);
+  };
+
   const stepIndex = STEP_ORDER.indexOf(step);
   const progressWidth = `${Math.max(7, ((stepIndex + 1) / STEP_ORDER.length) * 100)}%`;
 
-  const summaryRows = [
-    { label: "Name", value: data.name },
-    { label: "Email", value: data.email },
-    { label: "Phone", value: data.phone },
-    { label: "Professional Background", value: data.professionalBackground },
-    { label: "Digital Experience", value: data.digitalExperience },
-    { label: "Main Struggle", value: data.mainStruggle },
-    { label: "Revenue Mechanism", value: data.revenueMechanism },
-    { label: "Platform Priorities", value: data.platformPriorities },
-    { label: "Ultimate Goal", value: data.ultimateGoal },
-    { label: "Investment Mindset", value: data.investmentMindset },
-    { label: "Preferred Slot", value: data.consultationDate },
+  const summaryRows: Array<{ field: FieldStep; label: string; value: string }> = [
+    { field: "name", label: "Name", value: data.name },
+    { field: "email", label: "Email", value: data.email },
+    { field: "phone", label: "Phone", value: data.phone },
+    { field: "professionalBackground", label: "Professional Background", value: data.professionalBackground },
+    { field: "digitalExperience", label: "Digital Experience", value: data.digitalExperience },
+    { field: "mainStruggle", label: "Main Struggle", value: data.mainStruggle },
+    { field: "revenueMechanism", label: "Revenue Mechanism", value: data.revenueMechanism },
+    { field: "platformPriorities", label: "Platform Priorities", value: data.platformPriorities },
+    { field: "ultimateGoal", label: "Ultimate Goal", value: data.ultimateGoal },
+    { field: "investmentMindset", label: "Investment Mindset", value: data.investmentMindset },
+    { field: "consultationDate", label: "Preferred Slot", value: data.consultationDate },
   ];
+  const hasCollectedData = summaryRows.some(({ value }) => value);
 
   const botAvatar = (
     <div className="avatar">
@@ -377,7 +440,7 @@ export function HakaConsultation() {
       overflow: hidden;
     }
     .chat-card {
-      width: min(765px, calc(100vw - 34px));
+      width: min(1000px, calc(100vw - 34px));
       height: min(746px, calc(100dvh - 124px));
       min-height: 590px;
       background: #f8fffe;
@@ -386,6 +449,75 @@ export function HakaConsultation() {
       display: grid;
       grid-template-rows: 166px minmax(0, 1fr) auto;
       box-shadow: 0 24px 72px rgba(0, 54, 50, 0.18);
+      transition: filter 0.25s ease, transform 0.25s ease;
+    }
+    .chat-card.is-blurred {
+      filter: blur(8px);
+      transform: scale(0.985);
+      pointer-events: none;
+      user-select: none;
+    }
+    .video-popup {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 6, 7, 0.42);
+      backdrop-filter: blur(8px);
+    }
+    .video-dialog {
+      position: relative;
+      width: min(430px, calc(100vw - 34px));
+      max-height: calc(100dvh - 48px);
+      border-radius: 7px;
+      overflow: hidden;
+      background: #030607;
+      border: 1px solid rgba(232, 251, 248, 0.28);
+      box-shadow: 0 28px 82px rgba(0, 0, 0, 0.42);
+    }
+    .video-dialog video {
+      display: block;
+      width: 100%;
+      max-height: calc(100dvh - 48px);
+      aspect-ratio: 9 / 16;
+      object-fit: cover;
+      background: #030607;
+    }
+    .sound-start-btn {
+      position: absolute;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      border: 1px solid rgba(255, 255, 255, 0.52);
+      border-radius: 999px;
+      background: rgba(7, 155, 143, 0.94);
+      color: #ffffff;
+      min-height: 46px;
+      padding: 0 20px;
+      font-family: inherit;
+      font-size: 17px;
+      cursor: pointer;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+      z-index: 1;
+    }
+    .video-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(255, 255, 255, 0.42);
+      border-radius: 50%;
+      background: rgba(3, 6, 7, 0.72);
+      color: #ffffff;
+      font-size: 26px;
+      line-height: 1;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      z-index: 1;
     }
     .logo-crown {
       position: absolute;
@@ -447,6 +579,26 @@ export function HakaConsultation() {
       position: relative;
       min-height: 0;
       padding: 28px 31px 0;
+    }
+    .view-data-btn {
+      position: absolute;
+      top: 6px;
+      right: 92px;
+      min-height: 39px;
+      border: 1px solid #079b8f;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #073b3b;
+      padding: 0 16px;
+      font-family: inherit;
+      font-size: 15px;
+      cursor: pointer;
+      z-index: 2;
+      box-shadow: 0 8px 18px rgba(0, 54, 50, 0.08);
+    }
+    .view-data-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
     .refresh-btn {
       position: absolute;
@@ -511,7 +663,7 @@ export function HakaConsultation() {
     }
     .bubble {
       width: fit-content;
-      max-width: 570px;
+      max-width: 800px;
       background: #eef8f7;
       border-radius: 21px;
       color: #173f43;
@@ -650,13 +802,30 @@ export function HakaConsultation() {
       padding: 9px 12px;
       min-width: 0;
     }
+    .summary-item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
     .summary-item span {
       display: block;
       color: #7f8d97;
       font-size: 12px;
       text-transform: uppercase;
       letter-spacing: 1px;
-      margin-bottom: 3px;
+    }
+    .edit-field-btn {
+      border: none;
+      border-radius: 999px;
+      background: #eef8f7;
+      color: #079b8f;
+      padding: 4px 9px;
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
     }
     .summary-item p {
       margin: 0;
@@ -669,6 +838,26 @@ export function HakaConsultation() {
     .chat-input {
       padding: 0 31px 20px;
       background: #f8fffe;
+    }
+    .review-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .review-actions .finish-btn {
+      margin-top: 0;
+    }
+    .continue-btn {
+      border: 1px solid #b7d7d5;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #073b3b;
+      min-height: 50px;
+      padding: 0 22px;
+      font-family: inherit;
+      font-size: 18px;
+      cursor: pointer;
     }
     .input-line {
       border-top: 1px solid #b7d7d5;
@@ -714,46 +903,6 @@ export function HakaConsultation() {
       font-size: 16px;
       padding: 0 14px;
     }
-    .loader-card {
-      width: min(420px, calc(100vw - 44px));
-      border-radius: 7px;
-      background: #f8fffe;
-      padding: 40px 34px;
-      text-align: center;
-      box-shadow: 0 24px 72px rgba(0, 54, 50, 0.18);
-    }
-    .loader-card img {
-      width: 230px;
-      height: auto;
-      margin-bottom: 22px;
-      background: #030607;
-      border-radius: 999px;
-      padding: 18px 22px;
-      border: 1px solid rgba(7,155,143,0.28);
-    }
-    .loader-label {
-      font-size: 18px;
-      color: #173f43;
-      margin-bottom: 18px;
-    }
-    .loader-line {
-      height: 6px;
-      background: #f2f2f2;
-      overflow: hidden;
-      border-radius: 999px;
-    }
-    .loader-line span {
-      display: block;
-      height: 100%;
-      width: 42%;
-      background: #079b8f;
-      border-radius: 999px;
-      animation: loadSweep 1.15s ease-in-out infinite;
-    }
-    @keyframes loadSweep {
-      from { transform: translateX(-120%); }
-      to { transform: translateX(260%); }
-    }
     @media (max-width: 760px) {
       .gold-page {
         padding: 78px 10px 14px;
@@ -763,6 +912,16 @@ export function HakaConsultation() {
         height: calc(100dvh - 94px);
         min-height: 0;
         grid-template-rows: 142px minmax(0, 1fr) auto;
+      }
+      .video-popup {
+        padding: 18px;
+      }
+      .video-dialog {
+        width: min(390px, calc(100vw - 28px));
+        max-height: calc(100dvh - 36px);
+      }
+      .video-dialog video {
+        max-height: calc(100dvh - 36px);
       }
       .logo-crown {
         width: 220px;
@@ -791,6 +950,14 @@ export function HakaConsultation() {
       .refresh-btn {
         right: 22px;
         top: 2px;
+      }
+      .view-data-btn {
+        top: 2px;
+        right: 68px;
+        min-height: 39px;
+        max-width: 112px;
+        padding: 0 12px;
+        font-size: 13px;
       }
       .row {
         grid-template-columns: 38px minmax(0, 1fr);
@@ -843,48 +1010,50 @@ export function HakaConsultation() {
   };
 
   const renderSummary = () => {
-    if (step !== "summary") return null;
+    if (step !== "summary" && !showAllData) return null;
+
+    const isFinalSummary = step === "summary";
 
     return (
       <div className="row">
         {botAvatar}
         <div className="option-bubble">
-          <p className="option-title">Please review your consultation summary.</p>
+          <p className="option-title">
+            {isFinalSummary ? "Please review your consultation summary." : "Your saved consultation details so far."}
+          </p>
           <div className="summary-grid">
-            {summaryRows.map(({ label, value }) => (
+            {summaryRows.map(({ field, label, value }) => (
               <div key={label} className="summary-item">
-                <span>{label}</span>
+                <div className="summary-item-head">
+                  <span>{label}</span>
+                  <button className="edit-field-btn" type="button" onClick={() => editField(field)}>
+                    Edit
+                  </button>
+                </div>
                 <p>{value || "-"}</p>
               </div>
             ))}
           </div>
-          <button className="finish-btn" onClick={() => finish(data)} disabled={submitting}>
-            {submitting ? "Sending..." : "Confirm & Connect"}
-          </button>
+          <div className="review-actions">
+            {isFinalSummary ? (
+              <button className="finish-btn" onClick={() => finish(data)} disabled={submitting}>
+                {submitting ? "Sending..." : "Confirm & Connect"}
+              </button>
+            ) : (
+              <button className="continue-btn" type="button" onClick={() => setShowAllData(false)}>
+                Continue
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
-  if (isLoading) {
-    return (
-      <main className="gold-page">
-        <style>{styles}</style>
-        <section className="loader-card">
-          <img src={LOGO_SRC} alt="Grow Medico" />
-          <div className="loader-label">Preparing consultation</div>
-          <div className="loader-line">
-            <span />
-          </div>
-        </section>
-      </main>
-    );
-  }
-
   return (
     <main className="gold-page">
       <style>{styles}</style>
-      <section className="chat-card">
+      <section className={`chat-card${showVideoPopup ? " is-blurred" : ""}`} aria-hidden={showVideoPopup}>
         <div className="logo-crown">
           <img src={LOGO_SRC} alt="Grow Medico" />
         </div>
@@ -898,6 +1067,14 @@ export function HakaConsultation() {
         </header>
 
         <div className="chat-body-wrap">
+          <button
+            className="view-data-btn"
+            type="button"
+            onClick={() => setShowAllData((current) => !current)}
+            disabled={!hasCollectedData}
+          >
+            {showAllData ? "Hide data" : "View all data"}
+          </button>
           <button className="refresh-btn" type="button" onClick={resetChat} aria-label="Restart chat">
             ↻
           </button>
@@ -1009,6 +1186,17 @@ export function HakaConsultation() {
           </div>
         )}
       </section>
+
+      {showVideoPopup && (
+        <div className="video-popup" role="dialog" aria-modal="true" aria-label="Intro video">
+          <div className="video-dialog">
+            <button className="video-close" type="button" onClick={closeVideoPopup} aria-label="Close video">
+              ×
+            </button>
+            <video ref={videoRef} src={POPUP_VIDEO_SRC} controls autoPlay playsInline muted={false} />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
