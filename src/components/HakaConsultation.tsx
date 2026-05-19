@@ -4,6 +4,8 @@ import { useNavigate } from "@tanstack/react-router";
 const LOCAL_STORAGE_KEY = "hakaConsultationSubmissions";
 const LOGO_SRC = "/gmlogo1.webp";
 const POPUP_VIDEO_SRC = "/adss.mov";
+const SUBMISSION_ENDPOINT =
+  import.meta.env.VITE_SUBMISSION_API_URL || import.meta.env.VITE_SUBMISSION_WEBHOOK_URL || "/api/submissions";
 
 type Step =
   | "name"
@@ -165,6 +167,62 @@ function saveSubmissionToLocalStorage(formData: FormData) {
   }
 }
 
+function buildConcernText(formData: FormData) {
+  return [
+    `Professional Background: ${formData.professionalBackground}`,
+    `Digital Experience: ${formData.digitalExperience}`,
+    `Main Struggle: ${formData.mainStruggle}`,
+    `Revenue Mechanism: ${formData.revenueMechanism}`,
+    `Platform Priorities: ${formData.platformPriorities}`,
+    `Ultimate Goal: ${formData.ultimateGoal}`,
+    `Investment Mindset: ${formData.investmentMindset}`,
+  ]
+    .filter((line) => !line.endsWith(": "))
+    .join("\n");
+}
+
+function buildSubmissionPayload(formData: FormData) {
+  const pageUrl = typeof window === "undefined" ? "" : window.location.href;
+
+  return {
+    source: "Haka Consultation",
+    name: formData.name,
+    phone: formData.phone,
+    email: formData.email,
+    appointmentDateTime: formData.consultationDate,
+    concern: buildConcernText(formData),
+    condition: buildConcernText(formData),
+    pageUrl,
+    url: pageUrl,
+    professionalBackground: formData.professionalBackground,
+    digitalExperience: formData.digitalExperience,
+    mainStruggle: formData.mainStruggle,
+    revenueMechanism: formData.revenueMechanism,
+    platformPriorities: formData.platformPriorities,
+    ultimateGoal: formData.ultimateGoal,
+    investmentMindset: formData.investmentMindset,
+    consultationDate: formData.consultationDate,
+  };
+}
+
+async function submitConsultation(formData: FormData) {
+  const endpoint = SUBMISSION_ENDPOINT.trim();
+  if (!endpoint) return;
+
+  const isExternalEndpoint = /^https?:\/\//i.test(endpoint);
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": isExternalEndpoint ? "text/plain;charset=utf-8" : "application/json" },
+    body: JSON.stringify(buildSubmissionPayload(formData)),
+    mode: isExternalEndpoint ? "no-cors" : "cors",
+  });
+
+  if (!isExternalEndpoint && !response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Submission failed");
+  }
+}
+
 export function HakaConsultation() {
   const navigate = useNavigate();
 
@@ -175,7 +233,6 @@ export function HakaConsultation() {
   const [selectedTime, setSelectedTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showVideoPopup, setShowVideoPopup] = useState(true);
-  const [videoNeedsInteraction, setVideoNeedsInteraction] = useState(false);
   const [showAllData, setShowAllData] = useState(false);
   const [editingStep, setEditingStep] = useState<FieldStep | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -261,13 +318,9 @@ export function HakaConsultation() {
     videoRef.current.muted = false;
     videoRef.current.defaultMuted = false;
     videoRef.current.volume = 1;
-
-    videoRef.current
-      .play()
-      .then(() => setVideoNeedsInteraction(false))
-      .catch(() => {
-        setVideoNeedsInteraction(true);
-      });
+    videoRef.current.play().catch(() => {
+      // Browser autoplay policies can block sound before user interaction.
+    });
   };
 
   useEffect(() => {
@@ -330,12 +383,19 @@ export function HakaConsultation() {
     }
   };
 
-  const finish = (finalData: FormData) => {
+  const finish = async (finalData: FormData) => {
     setSubmitting(true);
     saveSubmissionToLocalStorage(finalData);
 
-    const firstName = finalData.name.split(" ")[0] || "";
-    navigate({ to: "/thank-you", search: { firstName, email: finalData.email } });
+    try {
+      await submitConsultation(finalData);
+      const firstName = finalData.name.split(" ")[0] || "";
+      navigate({ to: "/thank-you", search: { firstName, email: finalData.email } });
+    } catch (error) {
+      console.error("Failed to submit consultation:", error);
+      pushNotice("We could not submit this right now. Please try again in a moment.");
+      setSubmitting(false);
+    }
   };
 
   const resetChat = () => {
@@ -372,7 +432,6 @@ export function HakaConsultation() {
   const closeVideoPopup = () => {
     videoRef.current?.pause();
     setShowVideoPopup(false);
-    setVideoNeedsInteraction(false);
   };
 
   const editField = (field: FieldStep) => {
@@ -484,23 +543,6 @@ export function HakaConsultation() {
       aspect-ratio: 9 / 16;
       object-fit: cover;
       background: #030607;
-    }
-    .sound-start-btn {
-      position: absolute;
-      left: 50%;
-      bottom: 22px;
-      transform: translateX(-50%);
-      border: 1px solid rgba(255, 255, 255, 0.52);
-      border-radius: 999px;
-      background: rgba(7, 155, 143, 0.94);
-      color: #ffffff;
-      min-height: 46px;
-      padding: 0 20px;
-      font-family: inherit;
-      font-size: 17px;
-      cursor: pointer;
-      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
-      z-index: 1;
     }
     .video-close {
       position: absolute;
@@ -917,11 +959,13 @@ export function HakaConsultation() {
         padding: 18px;
       }
       .video-dialog {
-        width: min(390px, calc(100vw - 28px));
+        width: min(680px, calc(100vw - 28px));
         max-height: calc(100dvh - 36px);
       }
       .video-dialog video {
         max-height: calc(100dvh - 36px);
+        aspect-ratio: 9 / 9;
+        object-fit: cover;
       }
       .logo-crown {
         width: 220px;
@@ -1193,7 +1237,16 @@ export function HakaConsultation() {
             <button className="video-close" type="button" onClick={closeVideoPopup} aria-label="Close video">
               ×
             </button>
-            <video ref={videoRef} src={POPUP_VIDEO_SRC} controls autoPlay playsInline muted={false} />
+            <video
+              ref={videoRef}
+              src={POPUP_VIDEO_SRC}
+              controls
+              autoPlay
+              playsInline
+              muted={false}
+              preload="auto"
+              onCanPlay={playVideoWithSound}
+            />
           </div>
         </div>
       )}

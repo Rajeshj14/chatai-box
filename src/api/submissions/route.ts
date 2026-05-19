@@ -78,6 +78,7 @@ function getSheetWebhookUrl() {
     process.env.GOOGLE_APPS_SCRIPT_URL ||
     process.env.GOOGLE_SHEETS_WEBHOOK_URL ||
     process.env.NEXT_PUBLIC_GAS_URL ||
+    process.env.VITE_SUBMISSION_WEBHOOK_URL ||
     process.env.YOUR_GOOGLE_SHEET_ID ||
     ''
   ).trim();
