@@ -309,14 +309,14 @@ export function GrowMedicoConsultation() {
     }
   }, [step]);
 
-  const playVideoWithSound = () => {
+  const playVideo = () => {
     if (!videoRef.current) return;
 
     videoRef.current.muted = false;
     videoRef.current.defaultMuted = false;
     videoRef.current.volume = 1;
     videoRef.current.play().catch(() => {
-      // Browser autoplay policies can block sound before user interaction.
+      // Browser autoplay policies can block unmuted playback before user interaction.
     });
   };
 
@@ -326,7 +326,7 @@ export function GrowMedicoConsultation() {
       return;
     }
 
-    const playTimer = window.setTimeout(playVideoWithSound, 100);
+    const playTimer = window.setTimeout(playVideo, 100);
     const closeTimer = window.setTimeout(() => setShowVideoCloseButton(true), 3000);
     return () => {
       window.clearTimeout(playTimer);
@@ -1264,10 +1264,11 @@ export function GrowMedicoConsultation() {
               src={POPUP_VIDEO_SRC}
               controls
               autoPlay
+              loop
               playsInline
               muted={false}
               preload="auto"
-              onCanPlay={playVideoWithSound}
+              onCanPlay={playVideo}
             />
             {showVideoCloseButton && (
               <div className="video-close-wrap">
@@ -1280,7 +1281,7 @@ export function GrowMedicoConsultation() {
           {showVideoCloseButton && (
             <div className="video-close-wrap">
               <button className="video-close" type="button" onClick={closeVideoPopup}>
-                Close
+               Close and fill the form
               </button>
             </div>
           )}
