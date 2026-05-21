@@ -481,8 +481,14 @@ export function GrowMedicoConsultation() {
   );
 
   const styles = `
-    @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap');
     * { box-sizing: border-box; }
+    .gold-page input,
+    .gold-page button,
+    .gold-page textarea,
+    .gold-page select {
+      font-family: 'Manrope', Arial, sans-serif;
+    }
     .gold-page {
       position: fixed;
       inset: 0;
@@ -492,7 +498,7 @@ export function GrowMedicoConsultation() {
         radial-gradient(circle at 50% 12%, rgba(22,198,179,0.24), transparent 28%),
         linear-gradient(180deg, #030607 0%, #063634 48%, #e8fbf8 100%);
       color: #050505;
-      font-family: 'Jost', Arial, sans-serif;
+      font-family: 'Manrope', Arial, sans-serif;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -611,18 +617,20 @@ export function GrowMedicoConsultation() {
     }
     .chat-header h1 {
       margin: 0;
-      font-size: 30px;
-      line-height: 1.05;
+      font-family: 'Manrope', Arial, sans-serif;
+      font-size: 42px;
+      line-height: 0.98;
       font-weight: 700;
-      letter-spacing: -0.5px;
+      letter-spacing: 0;
     }
     .chat-header p {
       margin: 6px 0 0;
       color: #000000;
-      font-size: 18px;
+      font-size: 14px;
       line-height: 1.2;
-      font-weight: 400;
+      font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
     .progress-bar {
       width: min(352px, 54%);
@@ -734,11 +742,11 @@ export function GrowMedicoConsultation() {
       padding: 15px 22px;
       font-size: 20px;
       line-height: 1.28;
-      font-weight: 300;
+      font-weight: 500;
     }
     .bubble strong {
       color: #079b8f;
-      font-weight: 600;
+      font-weight: 800;
     }
     .user-bubble {
       max-width: 510px;
@@ -748,7 +756,7 @@ export function GrowMedicoConsultation() {
       padding: 13px 22px;
       font-size: 20px;
       line-height: 1.24;
-      font-weight: 400;
+      font-weight: 600;
       text-align: left;
     }
     .time {
@@ -794,7 +802,7 @@ export function GrowMedicoConsultation() {
       margin: 0 0 12px;
       font-size: 20px;
       line-height: 1.3;
-      font-weight: 300;
+      font-weight: 700;
     }
     .choice-list {
       display: flex;
@@ -814,7 +822,7 @@ export function GrowMedicoConsultation() {
       font-size: 20px;
       line-height: 1.1;
       font-family: inherit;
-      font-weight: 300;
+      font-weight: 600;
       cursor: pointer;
       transition: background 0.18s ease, color 0.18s ease;
     }
@@ -936,13 +944,17 @@ export function GrowMedicoConsultation() {
       border: none;
       outline: none;
       color: #073b3b;
-      font-family: inherit;
+      font-family: 'Manrope', Arial, sans-serif;
       font-size: 18px;
-      font-weight: 300;
+      font-weight: 600;
       padding: 0 0 0 18px;
       background: transparent;
     }
-    .answer-input::placeholder { color: #aebbc4; }
+    .answer-input::placeholder {
+      color: #aebbc4;
+      font-family: 'Manrope', Arial, sans-serif;
+      font-weight: 500;
+    }
     .send-btn {
       border: none;
       background: transparent;
@@ -1152,7 +1164,7 @@ export function GrowMedicoConsultation() {
                 <br />
                 We're a personal branding and digital growth team for healthcare professionals.
                 <br />
-                Nanba, please fill the form below to book a consultation with our team.
+                please fill the form below to book a consultation with our team.
               </div>
             </div>
             <div className="time">{formatRelativeTime(introCreatedAt, now)}</div>

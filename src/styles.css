@@ -57,8 +57,8 @@
   --text-glow: 0 0 10px rgba(7, 155, 143, 0.26);
 
   /* Fonts */
-  --font-serif: "Cormorant Garamond", serif;
-  --font-sans: "Inter", sans-serif;
+  --font-serif: 'Outfit', sans-serif;
+  --font-sans: 'Outfit', sans-serif;
 }
 /* ===============================
    BASE
