@@ -1,6 +1,6 @@
-import { HakaConsultation } from "./components/HakaConsultation";
+import { GrowMedicoConsultation } from "./components/GrowMedicoConsultation";
 
 export default function App() {
-  return <HakaConsultation />;
+  return <GrowMedicoConsultation />;
 }
   

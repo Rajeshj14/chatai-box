@@ -1,29 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { HakaConsultation } from "../components/HakaConsultation";
+import { GrowMedicoConsultation } from "../components/GrowMedicoConsultation";
 
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
-    title: "HAKA.media — Premium Digital Strategy",
+    title: "Grow Medico — Consultation",
     meta: [
       {
         name: "description",
         content:
-          "A private consultation with HAKA.media. Bespoke digital strategy, design, and development crafted for distinguished brands.",
+          "A private consultation with Grow Medico for personal branding, digital marketing, and growth.",
       },
       {
         property: "og:title",
-        content: "HAKA.media — Premium Digital Strategy",
+        content: "Grow Medico — Consultation",
       },
       {
         property: "og:description",
         content:
-          "A private consultation with HAKA.media. Bespoke digital strategy for distinguished brands.",
+          "A private consultation with Grow Medico for personal branding and digital growth.",
       },
     ],
   }),
 });
 
 function Index() {
-  return <HakaConsultation />;
+  return <GrowMedicoConsultation />;
 }

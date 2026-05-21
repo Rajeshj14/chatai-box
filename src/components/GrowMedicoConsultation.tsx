@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 
-const LOCAL_STORAGE_KEY = "hakaConsultationSubmissions";
+const LOCAL_STORAGE_KEY = "growMedicoConsultationSubmissions";
 const LOGO_SRC = "/gmlogo1.webp";
 const POPUP_VIDEO_SRC = "/adss.mov";
-const SUBMISSION_ENDPOINT =
-  import.meta.env.VITE_SUBMISSION_API_URL || import.meta.env.VITE_SUBMISSION_WEBHOOK_URL || "/api/submissions";
+const SUBMISSION_ENDPOINT = import.meta.env.VITE_SUBMISSION_API_URL || "/api/submissions";
 
 type Step =
   | "name"
@@ -143,6 +142,7 @@ const STEP_ORDER: Step[] = [
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 const getPhoneDigits = (value: string) => value.replace(/\D/g, "");
 const isValidPhone = (value: string) => getPhoneDigits(value).length === 10;
+const createInitialMessages = (): Message[] => [{ id: 1, type: "bot", text: PROMPTS.name, createdAt: Date.now() }];
 
 function saveSubmissionToLocalStorage(formData: FormData) {
   if (typeof window === "undefined") return;
@@ -185,15 +185,19 @@ function buildSubmissionPayload(formData: FormData) {
   const pageUrl = typeof window === "undefined" ? "" : window.location.href;
 
   return {
-    source: "Haka Consultation",
+    source: "Grow Medico Consultation",
+    formName: "Grow Medico Consultation",
     name: formData.name,
     phone: formData.phone,
     email: formData.email,
+    treatment: "Personal Branding Consultation",
     appointmentDateTime: formData.consultationDate,
     concern: buildConcernText(formData),
     condition: buildConcernText(formData),
+    message: buildConcernText(formData),
     pageUrl,
     url: pageUrl,
+    consent: true,
     professionalBackground: formData.professionalBackground,
     digitalExperience: formData.digitalExperience,
     mainStruggle: formData.mainStruggle,
@@ -223,16 +227,17 @@ async function submitConsultation(formData: FormData) {
   }
 }
 
-export function HakaConsultation() {
+export function GrowMedicoConsultation() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState<Step>("name");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(createInitialMessages);
   const [typing, setTyping] = useState(false);
   const [input, setInput] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showVideoPopup, setShowVideoPopup] = useState(true);
+  const [showVideoCloseButton, setShowVideoCloseButton] = useState(false);
   const [showAllData, setShowAllData] = useState(false);
   const [editingStep, setEditingStep] = useState<FieldStep | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -255,8 +260,7 @@ export function HakaConsultation() {
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const idRef = useRef(0);
-  const didInit = useRef(false);
+  const idRef = useRef(1);
 
   const pushBot = (text: string) => {
     setTyping(true);
@@ -296,13 +300,6 @@ export function HakaConsultation() {
   }, []);
 
   useEffect(() => {
-    if (didInit.current) return;
-    didInit.current = true;
-    const timer = window.setTimeout(() => pushBot(PROMPTS.name), 350);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, typing, step]);
 
@@ -324,10 +321,17 @@ export function HakaConsultation() {
   };
 
   useEffect(() => {
-    if (!showVideoPopup) return;
+    if (!showVideoPopup) {
+      setShowVideoCloseButton(false);
+      return;
+    }
 
-    const timer = window.setTimeout(playVideoWithSound, 100);
-    return () => window.clearTimeout(timer);
+    const playTimer = window.setTimeout(playVideoWithSound, 100);
+    const closeTimer = window.setTimeout(() => setShowVideoCloseButton(true), 3000);
+    return () => {
+      window.clearTimeout(playTimer);
+      window.clearTimeout(closeTimer);
+    };
   }, [showVideoPopup]);
 
   const advance = (value: string) => {
@@ -400,7 +404,8 @@ export function HakaConsultation() {
 
   const resetChat = () => {
     setStep("name");
-    setMessages([]);
+    setMessages(createInitialMessages());
+    idRef.current = 1;
     setInput("");
     setSelectedTime("");
     setSubmitting(false);
@@ -421,17 +426,12 @@ export function HakaConsultation() {
       investmentMindset: "",
       consultationDate: "",
     });
-    didInit.current = false;
-    setTimeout(() => {
-      if (didInit.current) return;
-      didInit.current = true;
-      pushBot(PROMPTS.name);
-    }, 250);
   };
 
   const closeVideoPopup = () => {
     videoRef.current?.pause();
     setShowVideoPopup(false);
+    setShowVideoCloseButton(false);
   };
 
   const editField = (field: FieldStep) => {
@@ -493,8 +493,11 @@ export function HakaConsultation() {
         linear-gradient(180deg, #030607 0%, #063634 48%, #e8fbf8 100%);
       color: #050505;
       font-family: 'Jost', Arial, sans-serif;
-      display: grid;
-      place-items: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
       padding: 96px 20px 28px;
       overflow: hidden;
     }
@@ -520,8 +523,11 @@ export function HakaConsultation() {
       position: fixed;
       inset: 0;
       z-index: 20;
-      display: grid;
-      place-items: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
       padding: 24px;
       background: rgba(3, 6, 7, 0.42);
       backdrop-filter: blur(8px);
@@ -529,7 +535,7 @@ export function HakaConsultation() {
     .video-dialog {
       position: relative;
       width: min(430px, calc(100vw - 34px));
-      max-height: calc(100dvh - 48px);
+      max-height: calc(100dvh - 120px);
       border-radius: 7px;
       overflow: hidden;
       background: #030607;
@@ -539,27 +545,43 @@ export function HakaConsultation() {
     .video-dialog video {
       display: block;
       width: 100%;
-      max-height: calc(100dvh - 48px);
+      max-height: calc(100dvh - 120px);
       aspect-ratio: 9 / 16;
       object-fit: cover;
       background: #030607;
     }
+    .video-close-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 0;
+      background: transparent;
+    }
     .video-close {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      width: 38px;
-      height: 38px;
-      border: 1px solid rgba(255, 255, 255, 0.42);
-      border-radius: 50%;
-      background: rgba(3, 6, 7, 0.72);
+      min-width: 128px;
+      min-height: 44px;
+      border: 1px solid rgba(232, 251, 248, 0.42);
+      border-radius: 999px;
+      background: #079b8f;
       color: #ffffff;
-      font-size: 26px;
-      line-height: 1;
+      font-family: inherit;
+      font-size: 17px;
+      font-weight: 600;
       cursor: pointer;
-      display: grid;
-      place-items: center;
-      z-index: 1;
+      opacity: 0;
+      transform: translateY(8px);
+      animation: videoCloseIn 0.22s ease forwards;
+    }
+    .video-dialog > .video-close:first-child {
+      display: none;
+    }
+    .video-dialog > .video-close-wrap {
+      display: none;
+    }
+    @keyframes videoCloseIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
     .logo-crown {
       position: absolute;
@@ -762,7 +784,7 @@ export function HakaConsultation() {
       box-shadow: 0 8px 22px rgba(0, 54, 50, 0.06);
     }
     .option-bubble {
-      max-width: 570px;
+      max-width: 770px;
       background: #eef8f7;
       border-radius: 21px;
       padding: 14px 22px 18px;
@@ -963,7 +985,7 @@ export function HakaConsultation() {
         max-height: calc(100dvh - 36px);
       }
       .video-dialog video {
-        max-height: calc(100dvh - 36px);
+        max-height: calc(100dvh - 94px);
         aspect-ratio: 9 / 9;
         object-fit: cover;
       }
@@ -1130,7 +1152,7 @@ export function HakaConsultation() {
                 <br />
                 We're a personal branding and digital growth team for healthcare professionals.
                 <br />
-                Please fill the information below to book consultation with our team.
+                Nanba, please fill the form below to book a consultation with our team.
               </div>
             </div>
             <div className="time">{formatRelativeTime(introCreatedAt, now)}</div>
@@ -1247,7 +1269,21 @@ export function HakaConsultation() {
               preload="auto"
               onCanPlay={playVideoWithSound}
             />
+            {showVideoCloseButton && (
+              <div className="video-close-wrap">
+                <button className="video-close" type="button" onClick={closeVideoPopup}>
+                  Close and fill the form
+                </button>
+              </div>
+            )}
           </div>
+          {showVideoCloseButton && (
+            <div className="video-close-wrap">
+              <button className="video-close" type="button" onClick={closeVideoPopup}>
+                Close
+              </button>
+            </div>
+          )}
         </div>
       )}
     </main>

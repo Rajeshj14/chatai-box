@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Lead {
+  id        Int     @id @default(autoincrement())
+  name      String
+  phone     String
+  email     String?
+  treatment String?
+  procedure String?
+  message   String?
+  city      String?
+  age       String?
+  pincode   String?
+  consent   Boolean @default(false)
+  source    String?
+  formName  String  @default("Website Leads")
+  status    String  @default("new")
+
+  whatsappNumber   String?
+  womansAgeBracket String?
+  tryingDuration   String?
+  isWhatsapp       String?
+
+  appointmentDateTime    String?
+  professionalBackground String?
+  digitalExperience      String?
+  mainStruggle           String?
+  revenueMechanism       String?
+  platformPriorities     String?
+  ultimateGoal           String?
+  investmentMindset      String?
+  pageUrl                String?
+
+  telecrmSynced Boolean @default(false)
+  telecrmId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
