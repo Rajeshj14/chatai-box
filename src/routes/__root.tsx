@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
@@ -55,24 +56,30 @@ export const Route = createRootRoute({
     ],
   }),
 
-  /* IMPORTANT: No <html> or <body> here */
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
 });
 
-/* ---------- SHELL ---------- */
-function RootShell({ children }: { children: React.ReactNode }) {
+/* ---------- DOCUMENT ---------- */
+function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <>
-      <HeadContent />
-      {children}
-      <Scripts />
-    </>
+    <html lang="en">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
   );
 }
 
 /* ---------- MAIN OUTLET ---------- */
 function RootComponent() {
-  return <Outlet />;
+  return (
+    <RootDocument>
+      <Outlet />
+    </RootDocument>
+  );
 }
