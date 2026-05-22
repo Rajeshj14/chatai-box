@@ -1,4 +1,4 @@
-// app/components/LeadsTable.tsx
+// app//LeadsTable.tsx
 "use client"
 
 import { useState, useEffect, Fragment } from "react"
