@@ -17,6 +17,7 @@ type Step =
   | "platformPriorities"
   | "ultimateGoal"
   | "investmentMindset"
+  | "budgetFit"
   | "consultationDate"
   | "summary"
   | "done";
@@ -34,6 +35,7 @@ interface FormData {
   platformPriorities: string;
   ultimateGoal: string;
   investmentMindset: string;
+  budgetFit: string;
   consultationDate: string;
 }
 
@@ -105,6 +107,7 @@ const OPTIONS: Partial<Record<Step, string[]>> = {
     "I have a budget, but I need to start with a smaller trial phase to see how it works first.",
     "I am currently just exploring information and looking for low-cost freelance options.",
   ],
+  budgetFit: ["Yes", "No"],
 };
 
 const TIME_SLOTS = ["10:00 AM", "12:00 PM", "02:00 PM", "04:00 PM", "06:00 PM"];
@@ -121,6 +124,7 @@ const PROMPTS: Record<Exclude<Step, "summary" | "done">, string> = {
   ultimateGoal: "What is the primary result you want to achieve through your personal brand in the next 90 days?",
   investmentMindset:
     "Building a premium personal brand through a dedicated agency requires an investment in strategy and production. What is your approach to this project?",
+  budgetFit: "Does an investment range of ₹80k to ₹1.5L match your budget?",
   consultationDate: "Please pick your preferred consultation date and time.",
 };
 
@@ -135,6 +139,7 @@ const STEP_ORDER: Step[] = [
   "platformPriorities",
   "ultimateGoal",
   "investmentMindset",
+  "budgetFit",
   "consultationDate",
   "summary",
 ];
@@ -143,6 +148,8 @@ const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.
 const getPhoneDigits = (value: string) => value.replace(/\D/g, "");
 const isValidPhone = (value: string) => getPhoneDigits(value).length === 10;
 const createInitialMessages = (): Message[] => [{ id: 1, type: "bot", text: PROMPTS.name, createdAt: Date.now() }];
+const shouldAskBudgetFit = (value: string) =>
+  value === OPTIONS.investmentMindset?.[0] || value === OPTIONS.investmentMindset?.[1];
 
 function saveSubmissionToLocalStorage(formData: FormData) {
   if (typeof window === "undefined") return;
@@ -176,6 +183,7 @@ function buildConcernText(formData: FormData) {
     `Platform Priorities: ${formData.platformPriorities}`,
     `Ultimate Goal: ${formData.ultimateGoal}`,
     `Investment Mindset: ${formData.investmentMindset}`,
+    `Budget Fit: ${formData.budgetFit}`,
   ]
     .filter((line) => !line.endsWith(": "))
     .join("\n");
@@ -205,6 +213,7 @@ function buildSubmissionPayload(formData: FormData) {
     platformPriorities: formData.platformPriorities,
     ultimateGoal: formData.ultimateGoal,
     investmentMindset: formData.investmentMindset,
+    budgetFit: formData.budgetFit,
     consultationDate: formData.consultationDate,
   };
 }
@@ -236,9 +245,6 @@ export function GrowMedicoConsultation() {
   const [input, setInput] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [showVideoPopup, setShowVideoPopup] = useState(true);
-  const [showVideoCloseButton, setShowVideoCloseButton] = useState(false);
-  const [showAllData, setShowAllData] = useState(false);
   const [editingStep, setEditingStep] = useState<FieldStep | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [introCreatedAt, setIntroCreatedAt] = useState(() => Date.now());
@@ -254,6 +260,7 @@ export function GrowMedicoConsultation() {
     platformPriorities: "",
     ultimateGoal: "",
     investmentMindset: "",
+    budgetFit: "",
     consultationDate: "",
   });
 
@@ -321,18 +328,9 @@ export function GrowMedicoConsultation() {
   };
 
   useEffect(() => {
-    if (!showVideoPopup) {
-      setShowVideoCloseButton(false);
-      return;
-    }
-
     const playTimer = window.setTimeout(playVideo, 100);
-    const closeTimer = window.setTimeout(() => setShowVideoCloseButton(true), 3000);
-    return () => {
-      window.clearTimeout(playTimer);
-      window.clearTimeout(closeTimer);
-    };
-  }, [showVideoPopup]);
+    return () => window.clearTimeout(playTimer);
+  }, []);
 
   const advance = (value: string) => {
     const trimmedValue = value.trim();
@@ -361,6 +359,43 @@ export function GrowMedicoConsultation() {
       return;
     }
 
+    if (step === "investmentMindset") {
+      setData((current) => ({
+        ...current,
+        investmentMindset: trimmedValue,
+        budgetFit: "",
+        consultationDate: shouldAskBudgetFit(trimmedValue) ? current.consultationDate : "",
+      }));
+
+      if (shouldAskBudgetFit(trimmedValue)) {
+        setStep("budgetFit");
+        pushBot(PROMPTS.budgetFit);
+      } else {
+        setStep("summary");
+        pushBot("Thanks for sharing. Please review your consultation summary.");
+      }
+      return;
+    }
+
+    if (step === "budgetFit") {
+      const isBudgetMatch = trimmedValue.toLowerCase() === "yes";
+
+      setData((current) => ({
+        ...current,
+        budgetFit: trimmedValue,
+        consultationDate: isBudgetMatch ? current.consultationDate : "",
+      }));
+
+      if (isBudgetMatch) {
+        setStep("consultationDate");
+        pushBot(PROMPTS.consultationDate);
+      } else {
+        setStep("summary");
+        pushBot("Thanks for sharing. Please review your consultation summary.");
+      }
+      return;
+    }
+
     const next: Partial<Record<Step, Step>> = {
       name: "email",
       email: "phone",
@@ -371,7 +406,6 @@ export function GrowMedicoConsultation() {
       revenueMechanism: "platformPriorities",
       platformPriorities: "ultimateGoal",
       ultimateGoal: "investmentMindset",
-      investmentMindset: "consultationDate",
       consultationDate: "summary",
     };
     const nextStep = next[step];
@@ -409,7 +443,6 @@ export function GrowMedicoConsultation() {
     setInput("");
     setSelectedTime("");
     setSubmitting(false);
-    setShowAllData(false);
     setEditingStep(null);
     setIntroCreatedAt(Date.now());
     setNow(Date.now());
@@ -424,19 +457,13 @@ export function GrowMedicoConsultation() {
       platformPriorities: "",
       ultimateGoal: "",
       investmentMindset: "",
+      budgetFit: "",
       consultationDate: "",
     });
   };
 
-  const closeVideoPopup = () => {
-    videoRef.current?.pause();
-    setShowVideoPopup(false);
-    setShowVideoCloseButton(false);
-  };
-
   const editField = (field: FieldStep) => {
     const currentValue = data[field];
-    setShowAllData(false);
     setEditingStep(field);
     setStep(field);
     setTyping(false);
@@ -456,9 +483,6 @@ export function GrowMedicoConsultation() {
     pushNotice(`Editing ${PROMPTS[field]}`);
   };
 
-  const stepIndex = STEP_ORDER.indexOf(step);
-  const progressWidth = `${Math.max(7, ((stepIndex + 1) / STEP_ORDER.length) * 100)}%`;
-
   const summaryRows: Array<{ field: FieldStep; label: string; value: string }> = [
     { field: "name", label: "Name", value: data.name },
     { field: "email", label: "Email", value: data.email },
@@ -470,10 +494,9 @@ export function GrowMedicoConsultation() {
     { field: "platformPriorities", label: "Platform Priorities", value: data.platformPriorities },
     { field: "ultimateGoal", label: "Ultimate Goal", value: data.ultimateGoal },
     { field: "investmentMindset", label: "Investment Mindset", value: data.investmentMindset },
+    { field: "budgetFit", label: "Budget Fit", value: data.budgetFit },
     { field: "consultationDate", label: "Preferred Slot", value: data.consultationDate },
   ];
-  const hasCollectedData = summaryRows.some(({ value }) => value);
-
   const botAvatar = (
     <div className="avatar">
       <img src={LOGO_SRC} alt="Grow Medico" />
@@ -495,8 +518,9 @@ export function GrowMedicoConsultation() {
       height: 100dvh;
       width: 100%;
       background:
-        radial-gradient(circle at 50% 12%, rgba(22,198,179,0.24), transparent 28%),
-        linear-gradient(180deg, #030607 0%, #063634 48%, #e8fbf8 100%);
+        radial-gradient(circle at 20% 8%, rgba(22,198,179,0.18), transparent 28%),
+        radial-gradient(circle at 78% 0%, rgba(232,251,248,0.22), transparent 28%),
+        linear-gradient(135deg, #020504 0%, #062826 46%, #e9f8f6 100%);
       color: #050505;
       font-family: 'Manrope', Arial, sans-serif;
       display: flex;
@@ -504,201 +528,183 @@ export function GrowMedicoConsultation() {
       justify-content: center;
       flex-direction: column;
       gap: 14px;
-      padding: 96px 20px 28px;
+      padding: 0;
       overflow: hidden;
     }
-    .chat-card {
-      width: min(1000px, calc(100vw - 34px));
-      height: min(746px, calc(100dvh - 124px));
-      min-height: 590px;
-      background: #f8fffe;
-      border-radius: 7px;
-      position: relative;
+    .consultation-shell {
+      width: 100vw;
+      height: 100dvh;
+      min-height: 0;
       display: grid;
-      grid-template-rows: 166px minmax(0, 1fr) auto;
-      box-shadow: 0 24px 72px rgba(0, 54, 50, 0.18);
-      transition: filter 0.25s ease, transform 0.25s ease;
+      grid-template-columns: minmax(260px, 0.62fr) minmax(660px, 1.38fr);
+      gap: 0;
+      align-items: stretch;
+      background: #041413;
     }
-    .chat-card.is-blurred {
-      filter: blur(8px);
-      transform: scale(0.985);
-      pointer-events: none;
-      user-select: none;
-    }
-    .video-popup {
-      position: fixed;
-      inset: 0;
-      z-index: 20;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 14px;
-      padding: 24px;
-      background: rgba(3, 6, 7, 0.42);
-      backdrop-filter: blur(8px);
-    }
-    .video-dialog {
+    .video-panel {
       position: relative;
-      width: min(430px, calc(100vw - 34px));
-      max-height: calc(100dvh - 120px);
-      border-radius: 7px;
+      min-height: 0;
+      border-radius: 0;
       overflow: hidden;
-      background: #030607;
-      border: 1px solid rgba(232, 251, 248, 0.28);
-      box-shadow: 0 28px 82px rgba(0, 0, 0, 0.42);
+      background:
+        radial-gradient(circle at 50% 18%, rgba(22, 198, 179, 0.2), transparent 34%),
+        #030607;
+      border: none;
     }
-    .video-dialog video {
+    .video-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, rgba(3, 6, 7, 0.28), transparent 34%, rgba(3, 6, 7, 0.34)),
+        linear-gradient(180deg, rgba(3, 6, 7, 0.22), transparent 42%, rgba(3, 6, 7, 0.42));
+    }
+    .video-panel::after {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      z-index: 2;
+      pointer-events: none;
+      border: 1px solid rgba(232, 251, 248, 0.22);
+    }
+    .video-panel video {
       display: block;
       width: 100%;
-      max-height: calc(100dvh - 120px);
-      aspect-ratio: 9 / 16;
+      height: 100%;
       object-fit: cover;
       background: #030607;
+      filter: saturate(1.06) contrast(1.04);
     }
-    .video-close-wrap {
-      display: flex;
-      justify-content: center;
-      padding: 0;
-      background: transparent;
+    .chat-card {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(22, 198, 179, 0.1), transparent 30%),
+        linear-gradient(180deg, #fbfffe 0%, #f5fbfa 48%, #eef8f7 100%);
+      border-radius: 0;
+      position: relative;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      border-left: 1px solid rgba(22, 198, 179, 0.28);
+      overflow: hidden;
     }
-    .video-close {
-      min-width: 128px;
-      min-height: 44px;
-      border: 1px solid rgba(232, 251, 248, 0.42);
-      border-radius: 999px;
-      background: #079b8f;
-      color: #ffffff;
-      font-family: inherit;
-      font-size: 17px;
-      font-weight: 600;
-      cursor: pointer;
-      opacity: 0;
-      transform: translateY(8px);
-      animation: videoCloseIn 0.22s ease forwards;
-    }
-    .video-dialog > .video-close:first-child {
-      display: none;
-    }
-    .video-dialog > .video-close-wrap {
-      display: none;
-    }
-    @keyframes videoCloseIn {
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    .chat-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 120px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), transparent),
+        linear-gradient(90deg, transparent, rgba(7, 155, 143, 0.06), transparent);
+      pointer-events: none;
     }
     .logo-crown {
       position: absolute;
-      top: -58px;
+      top: 18px;
       left: 50%;
-      width: 282px;
-      height: 116px;
+      width: 268px;
+      height: 66px;
       transform: translateX(-50%);
       border-radius: 999px;
       background:
-        linear-gradient(135deg, rgba(7,155,143,0.22), rgba(3,6,7,0.96)),
+        linear-gradient(135deg, rgba(22,198,179,0.32), rgba(3,6,7,0.96)),
         #030607;
       display: grid;
       place-items: center;
       z-index: 2;
-      border: 1px solid rgba(7,155,143,0.38);
+      border: 1px solid rgba(232, 251, 248, 0.2);
+      outline: 1px solid rgba(22,198,179,0.36);
+      outline-offset: -5px;
+      overflow: hidden;
     }
     .logo-crown img {
-      width: 224px;
-      height: auto;
+      width: 202px;
+      height: 52px;
       display: block;
       object-fit: contain;
     }
-    .chat-header {
-      padding: 78px 32px 0;
-      text-align: center;
-    }
-    .chat-header h1 {
+    .logo-title {
+      position: absolute;
+      top: 92px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      width: min(520px, calc(100% - 260px));
       margin: 0;
-      font-family: 'Manrope', Arial, sans-serif;
-      font-size: 42px;
-      line-height: 0.98;
-      font-weight: 700;
+      color: #020b0b;
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 800;
+      text-align: center;
       letter-spacing: 0;
     }
-    .chat-header p {
-      margin: 6px 0 0;
-      color: #000000;
-      font-size: 14px;
+    .logo-tagline {
+      position: absolute;
+      top: 124px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      width: min(520px, calc(100% - 260px));
+      margin: 0;
+      color: #143838;
+      font-size: 15px;
       line-height: 1.2;
-      font-weight: 700;
+      font-weight: 800;
+      text-align: center;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0;
     }
-    .progress-bar {
-      width: min(352px, 54%);
-      height: 7px;
-      margin: 8px 0 0 32px;
-      background: transparent;
-      position: relative;
-    }
-    .progress-bar span {
-      display: block;
-      height: 100%;
-      width: var(--progress-width);
-      max-width: 100%;
+    .logo-rule {
+      position: absolute;
+      top: 151px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      width: 44px;
+      height: 6px;
+      border-radius: 999px;
       background: #079b8f;
-      transition: width 0.35s ease;
     }
     .chat-body-wrap {
       position: relative;
       min-height: 0;
-      padding: 28px 31px 0;
-    }
-    .view-data-btn {
-      position: absolute;
-      top: 6px;
-      right: 92px;
-      min-height: 39px;
-      border: 1px solid #079b8f;
-      border-radius: 999px;
-      background: #ffffff;
-      color: #073b3b;
-      padding: 0 16px;
-      font-family: inherit;
-      font-size: 15px;
-      cursor: pointer;
-      z-index: 2;
-      box-shadow: 0 8px 18px rgba(0, 54, 50, 0.08);
-    }
-    .view-data-btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
+      padding: 178px 38px 0;
     }
     .refresh-btn {
       position: absolute;
-      top: 6px;
+      top: 26px;
       right: 44px;
-      width: 39px;
-      height: 39px;
-      border: none;
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(232, 251, 248, 0.22);
       border-radius: 50%;
       background: #079b8f;
       color: #ffffff;
-      font-size: 24px;
+      font-size: 23px;
       line-height: 1;
       cursor: pointer;
       display: grid;
       place-items: center;
       z-index: 2;
+      transition: background 0.18s ease, transform 0.18s ease;
+    }
+    .refresh-btn:hover {
+      background: #047f76;
+      transform: translateY(-1px);
     }
     .chat-body {
       height: 100%;
       overflow-y: auto;
-      padding: 38px 0 18px;
+      padding: 0 0 20px;
       scrollbar-width: auto;
-      scrollbar-color: #8c8c8c transparent;
+      scrollbar-color: #9fcfca transparent;
     }
     .chat-body::-webkit-scrollbar { width: 13px; }
     .chat-body::-webkit-scrollbar-thumb {
-      background: #8c8c8c;
+      background: #9fcfca;
       border-radius: 999px;
       border: 3px solid #f8fffe;
     }
@@ -706,10 +712,10 @@ export function GrowMedicoConsultation() {
     .row {
       display: grid;
       grid-template-columns: 52px minmax(0, 1fr);
-      gap: 16px;
+      gap: 18px;
       align-items: start;
       margin-bottom: 10px;
-      padding-right: 30px;
+      padding-right: 22px;
     }
     .row.user {
       display: flex;
@@ -718,17 +724,17 @@ export function GrowMedicoConsultation() {
       margin: 18px 0 8px;
     }
     .avatar {
-      width: 48px;
-      height: 34px;
+      width: 50px;
+      height: 40px;
       display: grid;
       place-items: center;
       margin-top: 8px;
       border-radius: 999px;
       background: #030607;
-      border: 1px solid rgba(7,155,143,0.26);
+      border: 1px solid rgba(22,198,179,0.34);
     }
     .avatar img {
-      width: 39px;
+      width: 40px;
       height: auto;
       object-fit: contain;
       opacity: 0.95;
@@ -736,12 +742,14 @@ export function GrowMedicoConsultation() {
     .bubble {
       width: fit-content;
       max-width: 800px;
-      background: #eef8f7;
-      border-radius: 21px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 253, 252, 0.88));
+      border: 1px solid rgba(7, 155, 143, 0.14);
+      border-radius: 8px 24px 24px 24px;
       color: #173f43;
-      padding: 15px 22px;
+      padding: 18px 25px;
       font-size: 20px;
-      line-height: 1.28;
+      line-height: 1.32;
       font-weight: 500;
     }
     .bubble strong {
@@ -750,25 +758,25 @@ export function GrowMedicoConsultation() {
     }
     .user-bubble {
       max-width: 510px;
-      border-radius: 24px;
-      background: #079b8f;
+      border-radius: 24px 8px 24px 24px;
+      background: linear-gradient(135deg, #047f76, #16b9ab);
       color: #ffffff;
-      padding: 13px 22px;
+      padding: 14px 23px;
       font-size: 20px;
-      line-height: 1.24;
+      line-height: 1.28;
       font-weight: 600;
       text-align: left;
     }
     .time {
-      color: #a7b5bf;
-      font-size: 15px;
+      color: #88a9a7;
+      font-size: 14px;
       line-height: 1;
       margin: 8px 0 20px 68px;
       font-weight: 300;
     }
     .user-time {
-      color: #a7b5bf;
-      font-size: 15px;
+      color: #88a9a7;
+      font-size: 14px;
       text-align: right;
       padding-right: 26px;
       margin: 0 0 30px;
@@ -783,19 +791,20 @@ export function GrowMedicoConsultation() {
       max-width: 520px;
       border: 1px solid rgba(7, 155, 143, 0.22);
       border-radius: 999px;
-      background: #eef8f7;
+      background: rgba(238, 248, 247, 0.86);
       color: #173f43;
       padding: 11px 18px;
       font-size: 16px;
       line-height: 1.25;
       text-align: center;
-      box-shadow: 0 8px 22px rgba(0, 54, 50, 0.06);
     }
     .option-bubble {
       max-width: 770px;
-      background: #eef8f7;
-      border-radius: 21px;
-      padding: 14px 22px 18px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(246, 253, 252, 0.9));
+      border: 1px solid rgba(7, 155, 143, 0.14);
+      border-radius: 8px 24px 24px 24px;
+      padding: 18px 25px 21px;
       color: #315f63;
     }
     .option-title {
@@ -810,34 +819,35 @@ export function GrowMedicoConsultation() {
       gap: 11px 12px;
     }
     .choice-btn {
-      border: 1px solid #079b8f;
+      border: 1px solid rgba(7, 155, 143, 0.34);
       border-radius: 999px;
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.86);
       color: #073b3b;
-      min-height: 54px;
-      padding: 0 18px;
+      min-height: 50px;
+      padding: 0 17px;
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      font-size: 20px;
+      font-size: 18px;
       line-height: 1.1;
       font-family: inherit;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.18s ease, color 0.18s ease;
+      transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
     }
     .choice-btn::before {
       content: "";
-      width: 16px;
-      height: 16px;
+      width: 13px;
+      height: 13px;
       border-radius: 50%;
       background: #cfe9e6;
       flex: 0 0 auto;
     }
     .choice-btn.active,
     .choice-btn:hover {
-      background: #079b8f;
+      background: linear-gradient(135deg, #047f76, #16b9ab);
       color: #ffffff;
+      transform: translateY(-1px);
     }
     .choice-btn.active::before,
     .choice-btn:hover::before {
@@ -845,9 +855,9 @@ export function GrowMedicoConsultation() {
     }
     .confirm-btn,
     .finish-btn {
-      border: 1px solid #079b8f;
+      border: 1px solid rgba(7, 155, 143, 0.36);
       border-radius: 999px;
-      background: #079b8f;
+      background: linear-gradient(135deg, #047f76, #16b9ab);
       color: #ffffff;
       min-height: 50px;
       padding: 0 22px;
@@ -868,9 +878,9 @@ export function GrowMedicoConsultation() {
       margin-top: 8px;
     }
     .summary-item {
-      border: 1px solid #d8d8d8;
-      border-radius: 14px;
-      background: #ffffff;
+      border: 1px solid rgba(7, 155, 143, 0.12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.88);
       padding: 9px 12px;
       min-width: 0;
     }
@@ -886,12 +896,12 @@ export function GrowMedicoConsultation() {
       color: #7f8d97;
       font-size: 12px;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0;
     }
     .edit-field-btn {
       border: none;
       border-radius: 999px;
-      background: #eef8f7;
+      background: #e4f5f3;
       color: #079b8f;
       padding: 4px 9px;
       font-family: inherit;
@@ -902,14 +912,15 @@ export function GrowMedicoConsultation() {
     .summary-item p {
       margin: 0;
       color: #1a1a1a;
-      font-size: 15px;
+      font-size: 14px;
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .chat-input {
-      padding: 0 31px 20px;
-      background: #f8fffe;
+      padding: 0 42px 28px;
+      background: transparent;
     }
     .review-actions {
       display: flex;
@@ -923,7 +934,7 @@ export function GrowMedicoConsultation() {
     .continue-btn {
       border: 1px solid #b7d7d5;
       border-radius: 999px;
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.86);
       color: #073b3b;
       min-height: 50px;
       padding: 0 22px;
@@ -932,22 +943,25 @@ export function GrowMedicoConsultation() {
       cursor: pointer;
     }
     .input-line {
-      border-top: 1px solid #b7d7d5;
+      border: 1px solid rgba(7, 155, 143, 0.28);
+      border-radius: 999px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 253, 252, 0.92));
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 46px;
+      grid-template-columns: minmax(0, 1fr) 50px;
       align-items: center;
       gap: 12px;
-      min-height: 57px;
+      min-height: 66px;
     }
     .answer-input {
       width: 100%;
       border: none;
       outline: none;
-      color: #073b3b;
+      color: #062f2e;
       font-family: 'Manrope', Arial, sans-serif;
       font-size: 18px;
       font-weight: 600;
-      padding: 0 0 0 18px;
+      padding: 0 0 0 24px;
       background: transparent;
     }
     .answer-input::placeholder {
@@ -957,12 +971,25 @@ export function GrowMedicoConsultation() {
     }
     .send-btn {
       border: none;
-      background: transparent;
-      color: #079b8f;
-      font-size: 34px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #8fd8d1;
+      color: #ffffff;
+      font-size: 25px;
       line-height: 1;
       cursor: pointer;
       padding: 0;
+      display: grid;
+      place-items: center;
+      transition: background 0.18s ease, transform 0.18s ease;
+    }
+    .send-btn:not(:disabled) {
+      background: linear-gradient(135deg, #047f76, #16b9ab);
+    }
+    .send-btn:not(:disabled):hover {
+      background: #047f76;
+      transform: translateX(1px);
     }
     .send-btn:disabled {
       cursor: default;
@@ -979,68 +1006,68 @@ export function GrowMedicoConsultation() {
       font-size: 16px;
       padding: 0 14px;
     }
-    @media (max-width: 760px) {
+    @media (max-width: 980px) {
       .gold-page {
-        padding: 78px 10px 14px;
+        padding: 0;
+        overflow-y: auto;
+        justify-content: flex-start;
+      }
+      .consultation-shell {
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .video-panel {
+        height: 46dvh;
       }
       .chat-card {
         width: 100%;
-        height: calc(100dvh - 94px);
+        height: 54dvh;
         min-height: 0;
-        grid-template-rows: 142px minmax(0, 1fr) auto;
-      }
-      .video-popup {
-        padding: 18px;
-      }
-      .video-dialog {
-        width: min(680px, calc(100vw - 28px));
-        max-height: calc(100dvh - 36px);
-      }
-      .video-dialog video {
-        max-height: calc(100dvh - 94px);
-        aspect-ratio: 9 / 9;
-        object-fit: cover;
+        grid-template-rows: minmax(0, 1fr) auto;
+        border-left: none;
+        border-top: 1px solid rgba(7, 155, 143, 0.22);
       }
       .logo-crown {
         width: 220px;
-        height: 92px;
-        top: -46px;
+        height: 56px;
+        top: 10px;
       }
       .logo-crown img {
-        width: 174px;
+        width: 166px;
+        height: 42px;
       }
-      .chat-header {
-        padding: 62px 18px 0;
+      .logo-title {
+        top: 70px;
+        width: min(360px, calc(100% - 160px));
+        font-size: 22px;
       }
-      .chat-header h1 {
-        font-size: 24px;
+      .logo-tagline {
+        top: 96px;
+        width: min(360px, calc(100% - 160px));
+        font-size: 11px;
       }
-      .chat-header p {
-        font-size: 13px;
-      }
-      .progress-bar {
-        margin-left: 18px;
-        width: 52%;
+      .logo-rule {
+        top: 120px;
+        width: 38px;
+        height: 5px;
       }
       .chat-body-wrap {
-        padding: 12px 12px 0;
+        padding: 148px 12px 0;
       }
       .refresh-btn {
         right: 22px;
-        top: 2px;
-      }
-      .view-data-btn {
-        top: 2px;
-        right: 68px;
-        min-height: 39px;
-        max-width: 112px;
-        padding: 0 12px;
-        font-size: 13px;
+        top: 16px;
       }
       .row {
         grid-template-columns: 38px minmax(0, 1fr);
         gap: 9px;
         padding-right: 20px;
+      }
+      .chat-body {
+        padding-top: 0;
       }
       .bubble,
       .option-bubble {
@@ -1061,6 +1088,169 @@ export function GrowMedicoConsultation() {
       }
       .chat-input {
         padding: 0 12px 12px;
+      }
+    }
+    @media (max-width: 640px) {
+      .gold-page {
+        height: 100dvh;
+        overflow: hidden;
+      }
+      .consultation-shell {
+        height: 100dvh;
+        overflow: hidden;
+      }
+      .video-panel {
+        height: 32dvh;
+        min-height: 500px;
+      }
+      .video-panel::after {
+        inset: 10px;
+      }
+      .chat-card {
+        height: 68dvh;
+        min-height: 0;
+      }
+      .logo-crown {
+        top: 8px;
+        width: 172px;
+        height: 44px;
+      }
+      .logo-crown img {
+        width: 132px;
+        height: 34px;
+      }
+      .logo-title {
+        top: 56px;
+        width: min(280px, calc(100% - 150px));
+        font-size: 18px;
+      }
+      .logo-tagline {
+        top: 78px;
+        width: min(310px, calc(100% - 48px));
+        font-size: 10px;
+        line-height: 1.15;
+      }
+      .logo-rule {
+        top: 100px;
+        width: 34px;
+        height: 4px;
+      }
+      .refresh-btn {
+        top: 10px;
+        right: 12px;
+        width: 34px;
+        height: 34px;
+        font-size: 20px;
+      }
+      .chat-body-wrap {
+        padding: 124px 10px 0;
+      }
+      .chat-body {
+        padding-bottom: 12px;
+        scrollbar-width: thin;
+      }
+      .chat-body::-webkit-scrollbar {
+        width: 7px;
+      }
+      .row {
+        grid-template-columns: 32px minmax(0, 1fr);
+        gap: 8px;
+        padding-right: 6px;
+        margin-bottom: 8px;
+      }
+      .row.user {
+        padding-right: 6px;
+        margin: 12px 0 6px;
+      }
+      .avatar {
+        width: 30px;
+        height: 26px;
+        margin-top: 6px;
+      }
+      .avatar img {
+        width: 25px;
+      }
+      .bubble,
+      .option-bubble {
+        max-width: 100%;
+        border-radius: 8px 18px 18px 18px;
+        padding: 11px 13px;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+      .user-bubble {
+        max-width: calc(100vw - 70px);
+        border-radius: 18px 8px 18px 18px;
+        padding: 10px 13px;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+      .time {
+        margin: 5px 0 13px 40px;
+        font-size: 12px;
+      }
+      .user-time {
+        padding-right: 8px;
+        margin-bottom: 16px;
+        font-size: 12px;
+      }
+      .notice-row {
+        padding-right: 6px;
+      }
+      .notice-bubble {
+        border-radius: 16px;
+        padding: 9px 12px;
+        font-size: 13px;
+      }
+      .option-title {
+        font-size: 14px;
+        line-height: 1.35;
+      }
+      .choice-list {
+        gap: 8px;
+      }
+      .choice-btn {
+        width: 100%;
+        justify-content: flex-start;
+        min-height: 42px;
+        padding: 8px 12px;
+        font-size: 13px;
+        line-height: 1.25;
+        border-radius: 14px;
+      }
+      .choice-btn::before {
+        width: 10px;
+        height: 10px;
+      }
+      .summary-item p {
+        font-size: 13px;
+      }
+      .chat-input {
+        padding: 0 10px 10px;
+      }
+      .input-line {
+        min-height: 52px;
+        grid-template-columns: minmax(0, 1fr) 42px;
+        gap: 8px;
+      }
+      .answer-input {
+        font-size: 15px;
+        padding-left: 16px;
+      }
+      .send-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 21px;
+      }
+      .time-row {
+        gap: 7px;
+        padding: 8px 0 0 8px;
+      }
+      .time-row .choice-btn {
+        width: auto;
+        min-height: 36px;
+        font-size: 13px;
+        border-radius: 999px;
       }
     }
   `;
@@ -1088,17 +1278,13 @@ export function GrowMedicoConsultation() {
   };
 
   const renderSummary = () => {
-    if (step !== "summary" && !showAllData) return null;
-
-    const isFinalSummary = step === "summary";
+    if (step !== "summary") return null;
 
     return (
       <div className="row">
         {botAvatar}
         <div className="option-bubble">
-          <p className="option-title">
-            {isFinalSummary ? "Please review your consultation summary." : "Your saved consultation details so far."}
-          </p>
+          <p className="option-title">Please review your consultation summary.</p>
           <div className="summary-grid">
             {summaryRows.map(({ field, label, value }) => (
               <div key={label} className="summary-item">
@@ -1113,15 +1299,9 @@ export function GrowMedicoConsultation() {
             ))}
           </div>
           <div className="review-actions">
-            {isFinalSummary ? (
-              <button className="finish-btn" onClick={() => finish(data)} disabled={submitting}>
-                {submitting ? "Sending..." : "Confirm & Connect"}
-              </button>
-            ) : (
-              <button className="continue-btn" type="button" onClick={() => setShowAllData(false)}>
-                Continue
-              </button>
-            )}
+            <button className="finish-btn" onClick={() => finish(data)} disabled={submitting}>
+              {submitting ? "Sending..." : "Confirm & Connect"}
+            </button>
           </div>
         </div>
       </div>
@@ -1131,28 +1311,30 @@ export function GrowMedicoConsultation() {
   return (
     <main className="gold-page">
       <style>{styles}</style>
-      <section className={`chat-card${showVideoPopup ? " is-blurred" : ""}`} aria-hidden={showVideoPopup}>
+      <div className="consultation-shell">
+        <aside className="video-panel" aria-label="Intro video">
+          <video
+            ref={videoRef}
+            src={POPUP_VIDEO_SRC}
+            controls
+            autoPlay
+            loop
+            playsInline
+            muted={false}
+            preload="auto"
+            onCanPlay={playVideo}
+          />
+        </aside>
+
+      <section className="chat-card">
         <div className="logo-crown">
           <img src={LOGO_SRC} alt="Grow Medico" />
         </div>
-
-        <header className="chat-header">
-          <h1>GROW MEDICO</h1>
-          <p>Personal Branding | Digital Marketing | Growth</p>
-          <div className="progress-bar" style={{ "--progress-width": progressWidth } as React.CSSProperties}>
-            <span />
-          </div>
-        </header>
+        <p className="logo-title">GROW MEDICO</p>
+        <p className="logo-tagline">Personal Branding | Digital Marketing | Growth</p>
+        <span className="logo-rule" aria-hidden="true" />
 
         <div className="chat-body-wrap">
-          <button
-            className="view-data-btn"
-            type="button"
-            onClick={() => setShowAllData((current) => !current)}
-            disabled={!hasCollectedData}
-          >
-            {showAllData ? "Hide data" : "View all data"}
-          </button>
           <button className="refresh-btn" type="button" onClick={resetChat} aria-label="Restart chat">
             ↻
           </button>
@@ -1264,41 +1446,7 @@ export function GrowMedicoConsultation() {
           </div>
         )}
       </section>
-
-      {showVideoPopup && (
-        <div className="video-popup" role="dialog" aria-modal="true" aria-label="Intro video">
-          <div className="video-dialog">
-            <button className="video-close" type="button" onClick={closeVideoPopup} aria-label="Close video">
-              ×
-            </button>
-            <video
-              ref={videoRef}
-              src={POPUP_VIDEO_SRC}
-              controls
-              autoPlay
-              loop
-              playsInline
-              muted={false}
-              preload="auto"
-              onCanPlay={playVideo}
-            />
-            {showVideoCloseButton && (
-              <div className="video-close-wrap">
-                <button className="video-close" type="button" onClick={closeVideoPopup}>
-                  Close and fill the form
-                </button>
-              </div>
-            )}
-          </div>
-          {showVideoCloseButton && (
-            <div className="video-close-wrap">
-              <button className="video-close" type="button" onClick={closeVideoPopup}>
-               Close and fill the form
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      </div>
     </main>
   );
 }
