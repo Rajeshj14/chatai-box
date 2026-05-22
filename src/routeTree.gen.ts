@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ThankYouRouteImport } from './routes/thank-you'
+import { Route as IseeuRouteImport } from './routes/iseeu'
 import { Route as AdminDashboardRouteImport } from './routes/admin-dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSubmissionsRouteImport } from './routes/api/submissions'
@@ -18,6 +19,11 @@ import { Route as ApiLeadsRouteImport } from './routes/api/leads'
 const ThankYouRoute = ThankYouRouteImport.update({
   id: '/thank-you',
   path: '/thank-you',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IseeuRoute = IseeuRouteImport.update({
+  id: '/iseeu',
+  path: '/iseeu',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
@@ -44,6 +50,7 @@ const ApiLeadsRoute = ApiLeadsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin-dashboard': typeof AdminDashboardRoute
+  '/iseeu': typeof IseeuRoute
   '/thank-you': typeof ThankYouRoute
   '/api/leads': typeof ApiLeadsRoute
   '/api/submissions': typeof ApiSubmissionsRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin-dashboard': typeof AdminDashboardRoute
+  '/iseeu': typeof IseeuRoute
   '/thank-you': typeof ThankYouRoute
   '/api/leads': typeof ApiLeadsRoute
   '/api/submissions': typeof ApiSubmissionsRoute
@@ -59,6 +67,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin-dashboard': typeof AdminDashboardRoute
+  '/iseeu': typeof IseeuRoute
   '/thank-you': typeof ThankYouRoute
   '/api/leads': typeof ApiLeadsRoute
   '/api/submissions': typeof ApiSubmissionsRoute
@@ -68,6 +77,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin-dashboard'
+    | '/iseeu'
     | '/thank-you'
     | '/api/leads'
     | '/api/submissions'
@@ -75,6 +85,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin-dashboard'
+    | '/iseeu'
     | '/thank-you'
     | '/api/leads'
     | '/api/submissions'
@@ -82,6 +93,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin-dashboard'
+    | '/iseeu'
     | '/thank-you'
     | '/api/leads'
     | '/api/submissions'
@@ -90,6 +102,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  IseeuRoute: typeof IseeuRoute
   ThankYouRoute: typeof ThankYouRoute
   ApiLeadsRoute: typeof ApiLeadsRoute
   ApiSubmissionsRoute: typeof ApiSubmissionsRoute
@@ -102,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/thank-you'
       fullPath: '/thank-you'
       preLoaderRoute: typeof ThankYouRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/iseeu': {
+      id: '/iseeu'
+      path: '/iseeu'
+      fullPath: '/iseeu'
+      preLoaderRoute: typeof IseeuRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin-dashboard': {
@@ -138,6 +158,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  IseeuRoute: IseeuRoute,
   ThankYouRoute: ThankYouRoute,
   ApiLeadsRoute: ApiLeadsRoute,
   ApiSubmissionsRoute: ApiSubmissionsRoute,
